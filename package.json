@@ -1,0 +1,9 @@
+{
+	"scripts": {
+		"dev": "npm run build -- --sourcemap=inline --watch",
+		"build": "esbuild js/widget.js --minify --format=esm --bundle --outdir=src/threey/static"
+	},
+	"devDependencies": {
+		"esbuild": "^0.25.4"
+	}
+}

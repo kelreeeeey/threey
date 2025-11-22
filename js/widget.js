@@ -1,4 +1,5 @@
 import "./widget.css";
+
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { evaluate_cmap } from "./js-colormaps"
@@ -7,6 +8,7 @@ function render({model, el}) {
 
     const sliceOptions = ["Inline", "Crossline", "Depth Slice"];
     let currentSlice = sliceOptions[0];
+
     let currentSliceIndexOptions = [0, 0, 0];
     let currentSliceIndex = 0;
 
@@ -64,7 +66,7 @@ function render({model, el}) {
 
     const createToolbarSelection = (text, selections, onClick, isActive = false) => {
         // Label selection
-        const labelSelect = document.createElement("select");
+        const labelSelect = document.createElement("div");
         labelSelect.style.padding = "6px 12px";
         labelSelect.style.border = "1px solid #cbd5e0";
         labelSelect.style.borderRadius = "4px";
@@ -75,7 +77,10 @@ function render({model, el}) {
             let clab = 0;
             selections.forEach((lab) => {
                 labelSelect.innerHTML += `
-                    <option value="${clab}">${lab}</option>
+                    <label style="display: inline-block; margin-right: 12px; cursor: pointer;">
+                        <input type="radio" name="toolbarSelection" value="${clab}" style="margin-right: 4px;">
+                        ${lab}
+                    </label>
                 `;
                 clab += 1;
             });
@@ -84,6 +89,29 @@ function render({model, el}) {
 
         return labelSelect
     }
+
+    // const createToolbarSelection = (text, selections, onClick, isActive = false) => {
+    //     // Label selection
+    //     const labelSelect = document.createElement("select");
+    //     labelSelect.style.padding = "6px 12px";
+    //     labelSelect.style.border = "1px solid #cbd5e0";
+    //     labelSelect.style.borderRadius = "4px";
+    //     labelSelect.style.background = model.get("dark_mode") ? "#4a5568" : "white";
+    //     labelSelect.style.color = model.get("dark_mode") ? "white" : "black";
+    //     labelSelect.innerHTML = ``;
+    //     if (selections) {
+    //         let clab = 0;
+    //         selections.forEach((lab) => {
+    //             labelSelect.innerHTML += `
+    //                 <option value="${clab}">${lab}</option>
+    //             `;
+    //             clab += 1;
+    //         });
+    //     }
+    //     // labelSelect
+    //
+    //     return labelSelect
+    // }
 
     function createStyledSlider(sliderId, min, max, value, sliceType) {
         const container = document.createElement("div");
@@ -106,7 +134,7 @@ function render({model, el}) {
         slider.value = currentSliceIndexOptions[value].toString();
         slider.style.flex = "1";
         slider.style.padding = "4px 0";
- 
+
         const valueSpan = document.createElement("div");
         valueSpan.id = `label_${sliderId}`;
         valueSpan.style.color = model.get("dark_mode") ? "white" : "black";
@@ -286,7 +314,7 @@ function render({model, el}) {
     const height = model.get("height");
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     if (dims) {
-        camera.position.set(dims.inline+10, dims.crossline+10, dims.depth+10);
+        camera.position.set((dims.inline+10)/10, (dims.crossline+10)/10, (dims.depth+10)/10);
     } else {
         camera.position.set(5, 5, 5);
     }
@@ -330,7 +358,7 @@ function render({model, el}) {
 
     // 3D Box Frame toggle button
     function createFrameBox() {
-        const boxG=new THREE.BoxGeometry(dim.width, dim.depth, dim.height,);
+        const boxG=new THREE.BoxGeometry((dims.inline)/10, (dims.depth)/10, (dims.crossline)/10,);
         const boxE=new THREE.EdgesGeometry(boxG);
         const boxM=new THREE.LineBasicMaterial({color:darkMode ? 0x666666 : 0x888888});
         const boxW=new THREE.LineSegments(boxE,boxM);
@@ -365,118 +393,201 @@ function render({model, el}) {
 
 
     // Convert grayscale to RGB
-    function grayscaleToRGB(grayscaleArray, length, alpha, plane_cmap) {
-        const rgbArray = new Uint8Array(length * 4);
+    function grayscaleToRGB(grayscaleArray, length, alpha, plane_cmap, constRgbArray) {
+        if (!constRgbArray) {
+            const rgbArray = new Uint8Array(length * 4);
+            // const max_gr = grayscaleArray.sort((grayscaleArray,b)=>b.y-grayscaleArray.y)[0].y
+            // const min_gr = grayscaleArray.sort((grayscaleArray,b)=>grayscaleArray.y-b.y)[0].y
+            // // const min_gr = Math.min(grayscaleArray);
+            let value = null;
+            if (plane_cmap) {
+                grayscaleArray.forEach((it, i) => {
+                    value = evaluate_cmap(it, plane_cmap, false);
+                    const idx = (i*4)
+                    rgbArray[idx    ] = value[0]; // R
+                    rgbArray[idx + 1] = value[1]; // G
+                    rgbArray[idx + 2] = value[2]; // B
+                    rgbArray[idx + 3] = alpha;
+                });
+            } else if (cmap) {
+                let i = 0;
+                while (i < length) {
+                    value = evaluate_cmap(grayscaleArray[i], cmap, false);
+                    const idx = i*4
+                    rgbArray[idx    ] = value[0]; // R
+                    rgbArray[idx + 1] = value[1]; // G
+                    rgbArray[idx + 2] = value[2]; // B
+                    rgbArray[idx + 3] = alpha;
+                    i += 1;
+                }
+            } else {
+                let i = 0;
+                while (i < length) {
+                    value = Math.floor(grayscaleArray[i] * 255); // Normalize to 0-255
+                    const idx = i*4
+                    rgbArray[idx    ] = value; // R
+                    rgbArray[idx + 1] = value; // G
+                    rgbArray[idx + 2] = value; // B
+                    rgbArray[idx + 3] = alpha;
+                    i += 1;
+                }
 
-        // const max_gr = grayscaleArray.sort((grayscaleArray,b)=>b.y-grayscaleArray.y)[0].y
-        // const min_gr = grayscaleArray.sort((grayscaleArray,b)=>grayscaleArray.y-b.y)[0].y
-        // // const min_gr = Math.min(grayscaleArray);
-        let value = null;
-        if (plane_cmap) {
-            let i = 0;
-            while (i < length) {
-                value = evaluate_cmap(grayscaleArray[i], plane_cmap, false);
-                const idx = i*4
-                rgbArray[idx    ] = value[0]; // R
-                rgbArray[idx + 1] = value[1]; // G
-                rgbArray[idx + 2] = value[2]; // B
-                rgbArray[idx + 3] = alpha;
-                i += 1;
             }
-        } else if (cmap) {
-            let i = 0;
-            while (i < length) {
-                value = evaluate_cmap(grayscaleArray[i], plane_cmap, false);
-                const idx = i*4
-                rgbArray[idx    ] = value[0]; // R
-                rgbArray[idx + 1] = value[1]; // G
-                rgbArray[idx + 2] = value[2]; // B
-                rgbArray[idx + 3] = alpha;
-                i += 1;
-            }
+            return rgbArray;
         } else {
-            let i = 0;
-            while (i < length) {
-                value = Math.floor(grayscaleArray[i] * 255); // Normalize to 0-255
-                const idx = i*4
-                rgbArray[idx    ] = value; // R
-                rgbArray[idx + 1] = value; // G
-                rgbArray[idx + 2] = value; // B
-                rgbArray[idx + 3] = alpha;
-                i += 1;
+            let value = null;
+            if (plane_cmap) {
+                grayscaleArray.forEach((it, i) => {
+                    value = evaluate_cmap(it, plane_cmap, false);
+                    const idx = (i*4)
+                    constRgbArray[idx    ] = value[0]; // R
+                    constRgbArray[idx + 1] = value[1]; // G
+                    constRgbArray[idx + 2] = value[2]; // B
+                    constRgbArray[idx + 3] = alpha;
+                });
+            } else if (cmap) {
+                let i = 0;
+                while (i < length) {
+                    value = evaluate_cmap(grayscaleArray[i], cmap, false);
+                    const idx = i*4
+                    constRgbArray[idx    ] = value[0]; // R
+                    constRgbArray[idx + 1] = value[1]; // G
+                    constRgbArray[idx + 2] = value[2]; // B
+                    constRgbArray[idx + 3] = alpha;
+                    i += 1;
+                }
+            } else {
+                let i = 0;
+                while (i < length) {
+                    value = Math.floor(grayscaleArray[i] * 255); // Normalize to 0-255
+                    const idx = i*4
+                    constRgbArray[idx    ] = value; // R
+                    constRgbArray[idx + 1] = value; // G
+                    constRgbArray[idx + 2] = value; // B
+                    constRgbArray[idx + 3] = alpha;
+                    i += 1;
+                }
+
             }
-
+            return null;
         }
-
-        return rgbArray;
     }
+
+    const meshesPool = [
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+    ];
+
+    let rgbArraysInlinePool = [];
+    let rgbArraysCrosslinePool = [];
+    let rgbArraysDepthPool = [];
+
+    let countArrayInline = 0;
+    let countArrayCrossline = 0;
+    let countArrayDepth = 0;
 
     function updateChartPlane() {
 
         const data = model.get("data");
         const dim  = model.get("dimensions");
 
-        console.log("data:", data.length, dims);
-
-        data.forEach((plane) => {
+        data.forEach((plane, idx) => {
             const texture = plane.texture;
             const plane_span = plane.span_through;
             const idx_plane  = plane.index;
             const alpha = plane.alpha * 255 || 255;
             const plane_cmap = plane.cmap || null;
 
-            // let pos = plane.pos.x || 0, plane.pos.y || 0, plane.pos.z || 0;
+            let rgbArray = null;
+            if ("depth" == plane_span) {
+                if (rgbArraysDepthPool.length < countArrayDepth) {
+                    countArrayDepth += 1;
+                    rgbArraysDepthPool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
+                    rgbArray = rgbArraysDepthPool[0];
+                } else {
+                    rgbArray = rgbArraysDepthPool[idx];
+                }
+            } else if ("inline" === plane_span) {
+                if (rgbArraysInlinePool.length < countArrayInline) {
+                    countArrayInline += 1;
+                    rgbArraysInlinePool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
+                    rgbArray = rgbArraysInlinePool[0];
+                } else {
+                    rgbArray = rgbArraysInlinePool[idx];
+                }
+            } else if ("crossline" === plane_span) {
+                if (rgbArraysCrosslinePool.length < countArrayCrossline) {
+                    countArrayCrossline += 1;
+                    rgbArraysCrosslinePool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
+                    rgbArray = rgbArraysCrosslinePool[0];
+                } else {
+                    rgbArray = rgbArraysCrosslinePool[idx];
+                }
+            } else {
+                rgbArray = null;
+            }
 
-            const geom = new THREE.PlaneGeometry(plane.width, plane.height);
 
             const startx = -(dim.inline  / 2);
-            const starty = -(dim.depth / 2);
+            const starty = +(dim.depth / 2);
             const startz = +(dim.crossline  / 2);
 
-            const rgbData = grayscaleToRGB(plane.texture, plane.width * plane.height, alpha, plane_cmap);
-            const dataTexture = new THREE.DataTexture(
-                rgbData,
-                plane.width,
-                plane.height,
-                THREE.RGBAFormat,
+            // let pos = plane.pos.x || 0, plane.pos.y || 0, plane.pos.z || 0;
+            // const geom = new THREE.BufferGeometry();
+
+            const geom = new THREE.PlaneGeometry(
+                plane.width/10,
+                plane.height/10,
             );
-            dataTexture.needsUpdate = true;
-            dataTexture.generateMipmaps = true;
-            dataTexture.magFilter = THREE.LinearFilter;
-            dataTexture.minFilter = THREE.LinearFilter;
-            const mesh =new THREE.MeshBasicMaterial( {
-                map:dataTexture,
-                side:THREE.DoubleSide,
-                transparent:true,
-                // color: 0x000000
-            });
 
-            if ("crossline" == plane_span) {
-                geom.translate(0, 0, startz - idx_plane);
+
+            let rgbData = null;
+            if (!rgbArray) {
+                rgbData = grayscaleToRGB(plane.texture, plane.width * plane.height, alpha, plane_cmap, rgbArray);
+            } else {
+                grayscaleToRGB(plane.texture, plane.width * plane.height, alpha, plane_cmap, rgbArray);
+                rgbData = rgbArray;
             }
 
-            if ("inline" == plane_span) {
-                geom.translate(0, 0, startx + idx_plane)
-            }
+            const clampedArray = new Uint8ClampedArray(rgbData.length);
+            clampedArray.set(rgbData)
+            let image = new ImageData(clampedArray, plane.width, plane.height);
+            const dataTexture = new THREE.Texture(image,);
 
             if ("depth" == plane_span) {
-                geom.translate(0, 0, starty + idx_plane)
+                dataTexture.flipY = true;
+                dataTexture.flipX = true;
+                dataTexture.flipZ = true;
+            } else{
+                dataTexture.flipY = true;
+                dataTexture.flipX = true;
+                dataTexture.flipZ = true;
             }
+            dataTexture.needsUpdate = true;
+            dataTexture.generateMipmaps = false;
+            dataTexture.magFilter = THREE.LinearFilter;
+            dataTexture.minFilter = THREE.LinearFilter;
 
+            let mesh = meshesPool[idx];
+            mesh.map = dataTexture
+
+
+            if ("crossline" === plane_span) { geom.translate(0, 0, (startz - idx_plane)/10); }
+            if ("inline"    === plane_span) { geom.translate(0, 0, (startx + idx_plane)/10) }
+            if ("depth"     === plane_span) { geom.translate(0, 0, (starty - idx_plane)/10) }
 
             const planeMesh = new THREE.Mesh(geom, mesh);
 
-            if ( "crossline" === plane_span ) {
-                planeMesh.rotation.y=-Math.PI/2;
-            }
-
-            if ( "inline" === plane_span ) {
-                planeMesh.rotation.y=0;
-            }
-
-            if ( "depth" === plane_span ) {
-                planeMesh.rotateX(-Math.PI/2);
-            }
+            if ( "crossline" === plane_span ) { planeMesh.rotation.y=-Math.PI/2; }
+            if ( "inline"    === plane_span ) { planeMesh.rotation.y=0; }
+            if ( "depth"     === plane_span ) { planeMesh.rotateX(-Math.PI/2); }
 
             planeMesh.position.set(0, 0, 0);
 
@@ -536,3 +647,4 @@ function render({model, el}) {
 }
 
 export default { render };
+

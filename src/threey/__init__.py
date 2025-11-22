@@ -369,7 +369,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
         self.send_state("current_xl_idx")
         self.send_state("current_z_idx" )
 
-
     def _normalize_data(self, data):
         """Normalize data to 0-1 range for texture rendering"""
         if data.dtype == np.bool_ or data.dtype == bool:

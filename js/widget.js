@@ -90,6 +90,7 @@ function render({model, el}) {
         return labelSelect
     }
 
+    // // selection dropdown
     // const createToolbarSelection = (text, selections, onClick, isActive = false) => {
     //     // Label selection
     //     const labelSelect = document.createElement("select");
@@ -113,6 +114,7 @@ function render({model, el}) {
     //     return labelSelect
     // }
 
+    // selection radio button
     function createStyledSlider(sliderId, min, max, value, sliceType) {
         const container = document.createElement("div");
         container.style.display = "flex";
@@ -410,28 +412,24 @@ function render({model, el}) {
                     rgbArray[idx + 3] = alpha;
                 });
             } else if (cmap) {
-                let i = 0;
-                while (i < length) {
-                    value = evaluate_cmap(grayscaleArray[i], cmap, false);
-                    const idx = i*4
+                grayscaleArray.forEach((it, i) => {
+                    value = evaluate_cmap(it, cmap, false);
+                    const idx = (i*4)
                     rgbArray[idx    ] = value[0]; // R
                     rgbArray[idx + 1] = value[1]; // G
                     rgbArray[idx + 2] = value[2]; // B
                     rgbArray[idx + 3] = alpha;
-                    i += 1;
-                }
+                });
             } else {
-                let i = 0;
-                while (i < length) {
-                    value = Math.floor(grayscaleArray[i] * 255); // Normalize to 0-255
+                grayscaleArray.forEach((it, i) => {
+                    value = Math.floor(it * 255); // Normalize to 0-255
                     const idx = i*4
                     rgbArray[idx    ] = value; // R
                     rgbArray[idx + 1] = value; // G
                     rgbArray[idx + 2] = value; // B
                     rgbArray[idx + 3] = alpha;
                     i += 1;
-                }
-
+                });
             }
             return rgbArray;
         } else {
@@ -446,27 +444,25 @@ function render({model, el}) {
                     constRgbArray[idx + 3] = alpha;
                 });
             } else if (cmap) {
-                let i = 0;
-                while (i < length) {
-                    value = evaluate_cmap(grayscaleArray[i], cmap, false);
-                    const idx = i*4
+                grayscaleArray.forEach((it, i) => {
+                    value = evaluate_cmap(it, cmap, false);
+                    const idx = (i*4)
                     constRgbArray[idx    ] = value[0]; // R
                     constRgbArray[idx + 1] = value[1]; // G
                     constRgbArray[idx + 2] = value[2]; // B
                     constRgbArray[idx + 3] = alpha;
-                    i += 1;
-                }
+                });
             } else {
                 let i = 0;
-                while (i < length) {
-                    value = Math.floor(grayscaleArray[i] * 255); // Normalize to 0-255
+                grayscaleArray.forEach((it, i) => {
+                    value = Math.floor(it * 255); // Normalize to 0-255
                     const idx = i*4
                     constRgbArray[idx    ] = value; // R
                     constRgbArray[idx + 1] = value; // G
                     constRgbArray[idx + 2] = value; // B
                     constRgbArray[idx + 3] = alpha;
                     i += 1;
-                }
+                });
 
             }
             return null;

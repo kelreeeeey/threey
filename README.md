@@ -18,7 +18,7 @@ We recommend using [uv](https://github.com/astral-sh/uv) for development.
 It will automatically manage virtual environments and dependencies for you.
 
 ```sh
-uv run jupyter lab example.ipynb
+uvx marimo edit example.py
 ```
 
 Alternatively, create and manage your own virtual environment:
@@ -27,7 +27,7 @@ Alternatively, create and manage your own virtual environment:
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-jupyter lab example.ipynb
+marimo edit --watch example.py
 ```
 
 The widget front-end code bundles it's JavaScript dependencies. After setting up Python,
@@ -44,6 +44,6 @@ rebuild JavaScript as you make changes:
 npm run dev
 ```
 
-Open `example.ipynb` in JupyterLab, VS Code, or your favorite editor
+Open `example.py` in JupyterLab, VS Code, or your favorite editor
 to start developing. Changes made in `js/` will be reflected
 in the notebook.

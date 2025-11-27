@@ -1,10 +1,140 @@
 import "./widget.css";
 
 import * as THREE from "three";
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { evaluate_cmap } from "./js-colormaps"
 
+function createRenderData( initialData = {
+    planeSpan: "inline",
+    downFactor: 5,
+    width: 10,
+    height: 10,
+    index: 0,
+    cmapBase: "seismic",
+    hasLabel: false,
+    cmapLabel: "gray",
+}) {
+
+    if (initialData.width && initialData.width <= 0) {
+        throw new Error('initialData.width should not be 0');
+    }
+    if (initialData.height && initialData.height <= 0) {
+        throw new Error('initialData.height should not be 0');
+    }
+
+    const renderData = Object.create(null, {
+
+        // Read-only properties
+        // Writable properties with initial values from parameters
+        planeSpan : { value: initialData.planeSpan || "inline", writable: false, enumerable: false },
+        width: { value: initialData.width || 0, writable: false, enumerable: false },
+        height: { value: initialData.height || 0, writable: false, enumerable: false },
+        downFactor : { value: initialData.downFactor || 1, writable: false, enumerable: false },
+
+        // writeable properties
+
+        index: { value: initialData.index || 0, writable: true, enumerable: false },
+
+        base : {
+            value: Object.create(null, {
+                cmap: { value: initialData.cmapBase || "seismic", writable: true, enumerable: false },
+                rgbArray: {
+                    value: new Uint8ClampedArray(initialData.width * initialData.height * 4),
+                    writable: true, enumerable: false
+                },
+                image: { value: null, writable: true, enumerable: false },
+                geometry: {
+                    value: new THREE.PlaneGeometry( initialData.width/initialData.downFactor, initialData.height/initialData.downFactor,),
+                    writable: true, enumerable: false
+                },
+                meshBasicMaterial: {
+                    value: new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
+                    writable: true, enumerable: false
+                },
+                texture : { value: null, writable: true, enumerable: false },
+                mesh : { value: null, writable: true, enumerable: false },
+
+            }),
+            writeable: true,
+            enumerable: false,
+        },
+
+        hasLabel: { value: initialData.hasLabel, writeable: true, enumerable: true },
+
+        label : {
+            value: initialData.hasLabel
+                ? Object.create(null, {
+                    cmap: { value: initialData.hasLabel ? initialData.cmapLabel : "gray", writable: true, enumerable: false },
+                    rgbArray: {
+                        value: initialData.hasLabel ? new Uint8ClampedArray(initialData.width * initialData.height * 4) : null,
+                        writable: true, enumerable: false
+                    },
+                    image: { value: null, writable: true, enumerable: false },
+                    geometry: {
+                        value: initialData.hasLabel ? new THREE.PlaneGeometry( initialData.width/initialData.downFactor, initialData.height/initialData.downFactor,) : null,
+                        writable: true, enumerable: false
+                    },
+                    meshBasicMaterial: {
+                        value: initialData.hasLabel ? new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}) : null,
+                        writable: true, enumerable: false
+                    },
+                    texture : { value: null, writable: true, enumerable: false },
+                    mesh : { value: null, writable: true, enumerable: false },
+
+                })
+                : null,
+            writeable: true,
+            enumerable: false,
+        },
+
+    });
+
+    renderData.base.image = new ImageData(renderData.base.rgbArray, initialData.width, initialData.height);
+    renderData.base.texture = new THREE.Texture(renderData.base.image);
+    renderData.base.mesh = new THREE.Mesh(renderData.base.geometry, renderData.base.meshBasicMaterial);
+
+    renderData.base.texture.needsUpdate = true;
+    renderData.base.texture.generateMipmaps = false;
+    renderData.base.texture.magFilter = THREE.LinearFilter;
+    renderData.base.texture.minFilter = THREE.LinearFilter;
+
+    if (initialData.hasLabel) {
+        renderData.label.image = new ImageData(renderData.label.rgbArray, initialData.width, initialData.height);
+        renderData.label.texture = new THREE.Texture(renderData.label.image);
+        renderData.label.mesh = new THREE.Mesh(renderData.label.geometry, renderData.label.meshBasicMaterial);
+
+        renderData.label.texture.needsUpdate = true;
+        renderData.label.texture.generateMipmaps = false;
+        renderData.label.texture.magFilter = THREE.LinearFilter;
+        renderData.label.texture.minFilter = THREE.LinearFilter;
+
+    }
+
+
+    return renderData;
+}
+
 function render({model, el}) {
+
+    const downFactor = 500;
+
+    let currentSliceFromPy = model.get("current_slice");
+    const dim = model.get("dimension");
+    const dims = model.get("dimensions");
+    let is2DView = model.get("is_2d_view");
+    const labelOptions = model.get('label_list');
+    let currentLabel = model.get("current_label");
+
+    let showLabel = model.get("show_label");
+    const darkMode = model.get("dark_mode");
+    const showFrameBox = model.get("show_frame");
+    // Camera setup
+    const width  = model.get("width");
+    const height = model.get("height");
+    let isDarkMode = model.get("dark_mode");
+
+    // -------------------------------------------------------------------------
 
     const sliceOptions = ["Inline", "Crossline", "Depth Slice"];
     let currentSlice = sliceOptions[0];
@@ -15,11 +145,10 @@ function render({model, el}) {
     sliceOptions.forEach((slice, idx) => {
         if (slice === currentSlice) {
             currentSliceIndex = idx;
+            currentSlice = slice;
         }
     });
 
-    const labelOptions = model.get('label_list');
-    let currentLabel = model.get("current_label");
     let currentLabelIndexOptions = [""];
     let currentLabelIndex = 0;
     if (labelOptions) {
@@ -78,10 +207,7 @@ function render({model, el}) {
             selections.forEach((lab) => {
                 labelSelect.innerHTML += `
                     <label style="display: inline-block; margin-right: 12px; cursor: pointer;">
-                        <input type="radio" name="toolbarSelection" value="${clab}" style="margin-right: 4px;">
-                        ${lab}
-                    </label>
-                `;
+                        <input type="radio" name="toolbarSelection" value="${clab}" style="margin-right: 4px;"> ${lab} </label> `;
                 clab += 1;
             });
         }
@@ -149,13 +275,14 @@ function render({model, el}) {
         container.appendChild(slider);
         container.appendChild(valueSpan);
 
-        // Event listener - send message when slider changes
-        slider.addEventListener("input", function() {
-            const sliderValue = parseInt(this.value);
+        // // Event listener - send message when slider changes
+        slider.addEventListener("input", (value) => {
+            const sliderValue = parseInt(sliderSlice.slider.value);
             valueSpan.textContent = sliderValue;
 
-            currentSliceIndexOptions[value] = sliderValue;
-            currentSlice = sliceType;
+            const idx = value
+            currentSliceIndexOptions[idx] = sliderValue;
+            currentSlice = label.textContent;
 
             // Send message to Python
             model.send({
@@ -170,6 +297,7 @@ function render({model, el}) {
         return {
             container: container,
             slider: slider,
+            valueSpan : valueSpan,
             getValue: () => parseInt(slider.value),
             setValue: (newValue, newSliceType, value) => {
                 slider.value = newValue.toString();
@@ -183,34 +311,123 @@ function render({model, el}) {
     }
 
 
-    let data = model.get("data");
+    // let dataIl = model.get("data_il");
+    // let dataXl = model.get("data_xl");
+    // let dataZ  = model.get("data_z");
+    let leftc, rightc, topc, bottomc
+    const updateCamera2DProperties = (sliceName) => {
+        if ( sliceName == "Inline" ) {
+            leftc   = (-dims.crossline)/downFactor;
+            rightc  = (+dims.crossline)/downFactor;
+            topc    = (+dims.depth)/downFactor;
+            bottomc = (-dims.depth)/downFactor;
+        } else if ( sliceName == "Crossline" ) {
+            leftc   = (-dims.inline)/downFactor;
+            rightc  = (+dims.inline)/downFactor;
+            topc    = (+dims.depth)/downFactor;
+            bottomc = (-dims.depth)/downFactor;
+        } else if ( sliceName == "Depth Slice" ) {
+            topc    = (+dims.inline)/downFactor;
+            bottomc = (-dims.inline)/downFactor;
+            leftc   = (-dims.crossline)/downFactor;
+            rightc  = (+dims.crossline)/downFactor;
+        }
+    }
 
-    let is2DView = model.get("is_2d_view");
-    const viewModeButton = createToolbarButton("2D View", () => {
+    // const startx = +(dims.inline     / 2);
+    // const startz = -(dims.crossline  / 2);
+    // const starty = +(dims.depth      / 2);
+
+    const camera2DLookAtInline    = new THREE.Vector3(0, 0, +(dims.inline     / 2));
+    const camera2DLookAtCrossline = new THREE.Vector3(-(dims.crossline  / 2), 0, 0);
+    const camera2DLookAtDepth     = new THREE.Vector3(0, +(dims.depth      / 2), 0);
+    const updateCamera2DPosition = (camera) => {
+        if ( currentSlice == "Inline" ) {
+            camera.position.set(0, 0, (dims.crossline)/2);
+            camera.lookAt(camera2DLookAtInline);
+        } else if ( currentSlice == "Crossline" ) {
+            camera.position.set(-(dims.crossline)/2, 0, 0);
+            camera.lookAt(camera2DLookAtCrossline);
+        } else if ( currentSlice == "Depth Slice" ) {
+            camera.position.set(0, (dims.depth)/2, 0);
+            camera.lookAt(camera2DLookAtDepth);
+        }
+    }
+    updateCamera2DProperties(currentSliceFromPy);
+
+    let camera, controls;
+    const camera2d = new THREE.OrthographicCamera(leftc, rightc, topc, bottomc, 0, 1000 );
+    const camera3d = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+
+    // Renderer setup
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+
+    const updateCameraMode = () => {
+        if (is2DView) {
+            camera = camera2d;
+            updateCamera2DPosition(camera);
+            // Controls
+            // controls = new PointerLockControls(camera, renderer.domElement);
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.addEventListener( 'lock', function () {
+                menu.style.display = 'none';
+            } );
+            controls.addEventListener( 'unlock', function () {
+                menu.style.display = 'block';
+            } );
+
+        } else {
+            camera = camera3d;
+            if (dims) {
+                camera.position.set((dims.inline+10)/downFactor, (dims.crossline+10)/downFactor, (dims.depth+10)/downFactor);
+            } else {
+                camera.position.set(5, 5, 5);
+            }
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+        }
+        camera.updateProjectionMatrix();
+    }
+    updateCameraMode();
+
+    // Reset camera button
+    const resetButton = createToolbarButton("Reset View", () => {
+        if (is2DView) { updateCamera2DProperties(currentSlice); }
+        updateCameraMode();
+        if (!is2DView) { controls.reset(); }
+    });
+
+
+    const viewModeButton = createToolbarButton(!is2DView ? "Change to 2D View" : "Change to 3D View", () => {
         is2DView = !is2DView;
-        viewModeButton.textContent = !is2DView ? "3D View" : "2D View";
+        viewModeButton.textContent = !is2DView ? "Change to 2D View" : "Change to 3D View";
         const msg = {type: "is-2d-view", data: is2DView};
-        // // console.log("sending message", msg);
         model.send(msg);
+        if (is2DView) { updateCamera2DProperties(currentSlice); }
+        updateCameraMode();
+        if (!is2DView) { controls.reset(); }
+
     });
 
     const viewCurrentSliceButton = createToolbarSelection("Select Slice to Show", sliceOptions, () => {})
     viewCurrentSliceButton.addEventListener("change", (e) => {
         currentSlice = sliceOptions[parseInt(e.target.value)];
         const msg = {type: "slice-to-show", data: currentSlice};
-        // // console.log("sending message", currentSlice);
-        model.send(msg);
         sliceOptions.forEach((slice, idx) => {
             if (slice === currentSlice) {
                 currentSliceIndex = idx;
                 sliderSlice.setValue(currentSliceIndexOptions[idx], slice, idx);
+                currentSlice = slice;
+                if (is2DView) { updateCamera2DProperties(currentSlice); }
+                updateCameraMode();
             }
         });
+        model.send(msg);
+        model.send({type: "current-slice", data: currentSlice});
     });
-
-    const dim = model.get("dimension");
-    const dims = model.get("dimensions");
-
 
     let sliderSlice = createStyledSlider(
         0,
@@ -220,11 +437,21 @@ function render({model, el}) {
         sliceOptions[currentSliceIndex],
     );
 
+    sliderSlice.slider.addEventListener("change", (e) => {
+        const sliderValue = parseInt(parseInt(e.target.value));
+        currentSliceIndexOptions[currentSliceIndex] = sliderValue;
+        sliderSlice.setValue(currentSliceIndexOptions[currentSliceIndex], sliceOptions[currentSliceIndex], currentSliceIndex);
+        // Send message to Python
+        model.send({type: `data-${currentSlice}`, data: sliderValue });
+        model.send({type: "current-slice", data: sliceOptions[currentSliceIndex]});
+    });
+
     const buttonNextSlice = createToolbarButton(`Next ▶`, () => {
         if (currentSliceIndexOptions[currentSliceIndex] <= dim[currentSliceIndex]) {
             currentSliceIndexOptions[currentSliceIndex] = sliderSlice.getValue() + 1;
             sliderSlice.setValue(currentSliceIndexOptions[currentSliceIndex], sliceOptions[currentSliceIndex], currentSliceIndex);
             model.send({type: `data-${currentSlice}`, data: currentSliceIndexOptions[currentSliceIndex]});
+            model.send({type: "current-slice", data: sliceOptions[currentSliceIndex]});
         }
     });
     const buttonPrevSlice = createToolbarButton(`◀ Prev`, () => {
@@ -232,6 +459,7 @@ function render({model, el}) {
             currentSliceIndexOptions[currentSliceIndex] = sliderSlice.getValue() - 1;
             sliderSlice.setValue(currentSliceIndexOptions[currentSliceIndex], sliceOptions[currentSliceIndex], currentSliceIndex);
             model.send({type: `data-${currentSlice}`, data: currentSliceIndexOptions[currentSliceIndex]});
+            model.send({type: "current-slice", data: sliceOptions[currentSliceIndex]});
         }
     });
 
@@ -257,8 +485,8 @@ function render({model, el}) {
     labelDiv.style.display = "flex";
     labelDiv.style.gap = "8px";
 
-    let showLabel = false;
-    const labelShow  = createToolbarButton("Show Label", () => {
+    console.log("showLabel:, ", showLabel);
+    const labelShow  = createToolbarButton(!showLabel ? "Show Label": "Hide Label", () => {
         showLabel = !showLabel;
         labelShow.textContent = !showLabel ? "Show Label" : "Hide Label";
         const msg = {type: "is-show-label", data: showLabel};
@@ -270,7 +498,7 @@ function render({model, el}) {
         const msg = {type: "label-to-show", data: currentLabel};
         model.send(msg);
         labelOptions.forEach((slice, idx) => {
-            if (slice === currentLabel) {
+                if (slice === currentLabel) {
                 currentLabelIndex = idx;
                 const msg = {type: "label-to-select", data: slice};
                 model.send(msg);
@@ -299,9 +527,6 @@ function render({model, el}) {
     container.style.borderRadius = "6px";
     container.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
 
-    const darkMode = model.get("dark_mode");
-    const showFrameBox = model.get("show_frame");
-
     // Scene setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(darkMode ? 0x1a1a1a : 0xffffff);
@@ -311,25 +536,7 @@ function render({model, el}) {
         scene.background = new THREE.Color(model.get("dark_mode") ? 0x1a1a1a : 0xffffff);
     }
 
-    // Camera setup
-    const width  = model.get("width");
-    const height = model.get("height");
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    if (dims) {
-        camera.position.set((dims.inline+10)/10, (dims.crossline+10)/10, (dims.depth+10)/10);
-    } else {
-        camera.position.set(5, 5, 5);
-    }
 
-    // Renderer setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-
-
-    // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, darkMode ? 0.4 : 0.6);
@@ -347,20 +554,16 @@ function render({model, el}) {
     }
 
     // Store chart objects for updates
+    let chartObjectsInline = [];
+    let chartObjectsCrossline = [];
+    let chartObjectsDepth = [];
     let chartObjects = [];
 
-    function clearChart() {
-        chartObjects.forEach((obj) => {
-            scene.remove(obj);
-            if (obj.geometry) obj.geometry.dispose();
-            if (obj.material) obj.material.dispose();
-        });
-        chartObjects = [];
-    }
+
 
     // 3D Box Frame toggle button
     function createFrameBox() {
-        const boxG=new THREE.BoxGeometry((dims.inline)/10, (dims.depth)/10, (dims.crossline)/10,);
+        const boxG=new THREE.BoxGeometry((dims.crossline)/downFactor, (dims.depth)/downFactor, (dims.inline)/downFactor,);
         const boxE=new THREE.EdgesGeometry(boxG);
         const boxM=new THREE.LineBasicMaterial({color:darkMode ? 0x666666 : 0x888888});
         const boxW=new THREE.LineSegments(boxE,boxM);
@@ -388,11 +591,13 @@ function render({model, el}) {
     );
 
 
-    // Reset camera button
-    const resetButton = createToolbarButton("Reset View", () => {
-        controls.reset();
+    const darkModeButton = createToolbarButton(!isDarkMode ? "Togle Light Mode" : "Togle Dark Mode", () => {
+        isDarkMode = !isDarkMode;
+        darkModeButton.textContent = !isDarkMode ? "Togle Light Mode" : "Togle Dark Mode";
+        const msg = {type: "is-dark-mode", data: isDarkMode};
+        model.send(msg);
+        updateBackground();
     });
-
 
     // Convert grayscale to RGB
     function grayscaleToRGB(grayscaleArray, length, alpha, plane_cmap, constRgbArray) {
@@ -404,12 +609,19 @@ function render({model, el}) {
             let value = null;
             if (plane_cmap) {
                 grayscaleArray.forEach((it, i) => {
-                    value = evaluate_cmap(it, plane_cmap, false);
                     const idx = (i*4)
-                    rgbArray[idx    ] = value[0]; // R
-                    rgbArray[idx + 1] = value[1]; // G
-                    rgbArray[idx + 2] = value[2]; // B
-                    rgbArray[idx + 3] = alpha;
+                    if (isNaN(it)) {
+                        rgbArray[idx    ] = 0; // R
+                        rgbArray[idx + 1] = 0; // G
+                        rgbArray[idx + 2] = 0; // B
+                        rgbArray[idx + 3] = 0;
+                    } else {
+                        value = evaluate_cmap(it, plane_cmap, false);
+                        rgbArray[idx    ] = value[0]; // R
+                        rgbArray[idx + 1] = value[1]; // G
+                        rgbArray[idx + 2] = value[2]; // B
+                        rgbArray[idx + 3] = alpha;
+                    }
                 });
             } else if (cmap) {
                 grayscaleArray.forEach((it, i) => {
@@ -469,141 +681,314 @@ function render({model, el}) {
         }
     }
 
-    const meshesPool = [
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-        new THREE.MeshBasicMaterial({map:null, side:THREE.DoubleSide, transparent:true}),
-    ];
+    let inlineRenderData = createRenderData({
+        planeSpan: "inline",
+        downFactor: downFactor,
+        width: dims.crossline,
+        height: dims.depth,
+        index: 0,
+        cmapBase: "seismic",
+        hasLabel: (labelOptions.length > 0) ? true : false,
+        cmapLabel: "gray",
+    });
 
-    let rgbArraysInlinePool = [];
-    let rgbArraysCrosslinePool = [];
-    let rgbArraysDepthPool = [];
+    let crosslineRenderData = createRenderData({
+        planeSpan: "crossline",
+        downFactor: downFactor,
+        width: dims.inline,
+        height: dims.depth,
+        index: 0,
+        cmapBase: "seismic",
+        hasLabel: (labelOptions.length > 0) ? true : false,
+        cmapLabel: "gray",
+    });
 
-    let countArrayInline = 0;
-    let countArrayCrossline = 0;
-    let countArrayDepth = 0;
+    let depthRenderData = createRenderData({
+        planeSpan: "depth",
+        downFactor: downFactor,
+        width: dims.inline,
+        height: dims.crossline,
+        index: 0,
+        cmapBase: "seismic",
+        hasLabel: (labelOptions.length > 0) ? true : false,
+        cmapLabel: "gray",
+    });
+
+
+    depthRenderData.base.mesh.rotation.x = (-Math.PI/2);
+    depthRenderData.base.mesh.rotation.z = (Math.PI/2);
+    depthRenderData.base.texture.flipY = true;
+    depthRenderData.base.texture.flipX = true;
+    depthRenderData.base.texture.flipZ = true;
+
+    inlineRenderData.base.mesh.rotation.y=0;
+    inlineRenderData.base.texture.flipY = true;
+    inlineRenderData.base.texture.flipX = true;
+    inlineRenderData.base.texture.flipZ = true;
+
+    crosslineRenderData.base.mesh.rotation.y=+Math.PI/2;
+    crosslineRenderData.base.texture.flipY = true;
+    crosslineRenderData.base.texture.flipX = false;
+    crosslineRenderData.base.texture.flipZ = false;
+
+    if (labelOptions.length > 0) {
+        depthRenderData.label.mesh.rotation.x = (-Math.PI/2)
+        depthRenderData.label.mesh.rotation.z = (Math.PI/2);
+        depthRenderData.label.texture.flipY = true;
+        depthRenderData.label.texture.flipX = true;
+        depthRenderData.label.texture.flipZ = true;
+
+        inlineRenderData.label.mesh.rotation.y=0;
+        inlineRenderData.label.texture.flipY = true;
+        inlineRenderData.label.texture.flipX = true;
+        inlineRenderData.label.texture.flipZ = true;
+
+        crosslineRenderData.label.mesh.rotation.y=+Math.PI/2;
+        crosslineRenderData.label.texture.flipY = true;
+        crosslineRenderData.label.texture.flipX = false;
+        crosslineRenderData.label.texture.flipZ = false;
+    }
+
+    // function updateChartInlinePlane(data) {
+    //     data.forEach((plane, idx) => {
+    //         const texture = plane.texture;
+    //         const idx_plane  = plane.index;
+    //         const alpha = plane.alpha * 255 || 255;
+    //         const plane_cmap = plane.cmap || null;
+    //         const isLabel = plane.is_label;
+    //     });
+    // }
+    // function updateChartCrosslinePlane(data) {
+    //     data.forEach((plane, idx) => {
+    //         const texture = plane.texture;
+    //         const plane_span = plane.span_through;
+    //         const idx_plane  = plane.index;
+    //         const alpha = plane.alpha * 255 || 255;
+    //         const plane_cmap = plane.cmap || null;
+    //         const isLabel = plane.is_label;
+    //     });
+    // };
+    //
+    // function updateChartDepthPlane(data){
+    //     data.forEach((plane, idx) => {
+    //     });
+    // }
+
+    const startx = +(dims.inline     / 2);
+    const startz = -(dims.crossline  / 2);
+    const starty = +(dims.depth      / 2);
+
+    const depthUpdateBase = (data = {plane: null, starty: starty}) => {
+        grayscaleToRGB(data.plane.texture, data.plane.width * data.plane.height, data.plane.alpha * 255, data.plane.cmap, depthRenderData.base.rgbArray);
+        depthRenderData.base.image.data.set(depthRenderData.base.rgbArray)
+        depthRenderData.base.texture.map = depthRenderData.base.image;
+        depthRenderData.base.texture.needsUpdate = true;
+        depthRenderData.base.meshBasicMaterial.map = depthRenderData.base.texture
+        depthRenderData.base.mesh.material = depthRenderData.base.meshBasicMaterial
+        if (!is2DView) {
+            depthRenderData.base.mesh.position.set(0, (starty - depthRenderData.index)/depthRenderData.downFactor, 0);
+        } else {
+            depthRenderData.base.mesh.position.set(0, (depthRenderData.index)/depthRenderData.downFactor, 0);
+        }
+    }
+
+    const depthUpdateLabel = (data = {plane: null, starty: starty}) => {
+        grayscaleToRGB(data.plane.texture, data.plane.width * data.plane.height, data.plane.alpha * 255, data.plane.cmap, depthRenderData.label.rgbArray);
+        depthRenderData.label.image.data.set(depthRenderData.label.rgbArray)
+        depthRenderData.label.texture.map = depthRenderData.label.image;
+        depthRenderData.label.texture.needsUpdate = true;
+        depthRenderData.label.meshBasicMaterial.map = depthRenderData.label.texture
+        depthRenderData.label.mesh.material = depthRenderData.label.meshBasicMaterial
+        if (!is2DView) {
+            depthRenderData.label.mesh.position.set(0, (starty - depthRenderData.index)/depthRenderData.downFactor, 0);
+        } else {
+            depthRenderData.label.mesh.position.set(0, (depthRenderData.index)/depthRenderData.downFactor, 0);
+        }
+    }
+
+    const inlineUpdateBase = (plane, startx, doShowLabel) => {
+        grayscaleToRGB(plane.texture, plane.width * plane.height, plane.alpha * 255, plane.cmap, inlineRenderData.base.rgbArray);
+        inlineRenderData.base.image.data.set(inlineRenderData.base.rgbArray)
+        inlineRenderData.base.texture.map = inlineRenderData.base.image;
+        inlineRenderData.base.texture.needsUpdate = true;
+        inlineRenderData.base.meshBasicMaterial.map = inlineRenderData.base.texture
+        inlineRenderData.base.mesh.material = inlineRenderData.base.meshBasicMaterial
+        if (!is2DView) {
+            inlineRenderData.base.mesh.position.set(0, 0, (startx - inlineRenderData.index)/inlineRenderData.downFactor);
+        } else {
+            inlineRenderData.base.mesh.position.set(0, 0, (startx)/inlineRenderData.downFactor);
+        }
+    }
+
+    const inlineUpdateLabel = (plane, startx, doShowLabel) => {
+        grayscaleToRGB(plane.texture, plane.width * plane.height, plane.alpha * 255, plane.cmap, inlineRenderData.label.rgbArray);
+        inlineRenderData.label.image.data.set(inlineRenderData.label.rgbArray)
+        inlineRenderData.label.texture.map = inlineRenderData.label.image;
+        inlineRenderData.label.texture.needsUpdate = true;
+        inlineRenderData.label.meshBasicMaterial.map = inlineRenderData.label.texture
+        inlineRenderData.label.mesh.material = inlineRenderData.label.meshBasicMaterial
+        inlineRenderData.label.mesh.position.set(0, 0, (startx - inlineRenderData.index)/inlineRenderData.downFactor);
+        if (!is2DView) {
+            inlineRenderData.label.mesh.position.set(0, 0, (startx - inlineRenderData.index)/inlineRenderData.downFactor);
+        } else {
+            inlineRenderData.label.mesh.position.set(0, 0, (startx)/inlineRenderData.downFactor);
+        }
+    }
+
+    const crosslineUpdateBase = (plane, startz, doShowLabel) => {
+        grayscaleToRGB(plane.texture, plane.width * plane.height, plane.alpha * 255, plane.cmap, crosslineRenderData.base.rgbArray);
+        crosslineRenderData.base.image.data.set(crosslineRenderData.base.rgbArray)
+        crosslineRenderData.base.texture.map = crosslineRenderData.base.image;
+        crosslineRenderData.base.texture.needsUpdate = true;
+        crosslineRenderData.base.meshBasicMaterial.map = crosslineRenderData.base.texture
+        crosslineRenderData.base.mesh.material = crosslineRenderData.base.meshBasicMaterial
+        crosslineRenderData.base.mesh.position.set((startz + crosslineRenderData.index)/crosslineRenderData.downFactor, 0, 0);
+        if (!is2DView) {
+            crosslineRenderData.base.mesh.position.set((startz + crosslineRenderData.index)/crosslineRenderData.downFactor, 0, 0);
+        } else {
+            crosslineRenderData.base.mesh.position.set(startz/crosslineRenderData.downFactor, 0, 0);
+        }
+    }
+
+    const crosslineUpdateLabel = (plane, startz, doShowLabel) => {
+        grayscaleToRGB(plane.texture, plane.width * plane.height, plane.alpha * 255, plane.cmap, crosslineRenderData.label.rgbArray);
+        crosslineRenderData.label.image.data.set(crosslineRenderData.label.rgbArray)
+        crosslineRenderData.label.texture.map = crosslineRenderData.label.image;
+        crosslineRenderData.label.texture.needsUpdate = true;
+        crosslineRenderData.label.meshBasicMaterial.map = crosslineRenderData.label.texture
+        crosslineRenderData.label.mesh.material = crosslineRenderData.label.meshBasicMaterial
+        crosslineRenderData.label.mesh.position.set((startz + crosslineRenderData.index)/crosslineRenderData.downFactor, 0, 0);
+        if (!is2DView) {
+            crosslineRenderData.label.mesh.position.set((startz + crosslineRenderData.index)/crosslineRenderData.downFactor, 0, 0);
+        } else {
+            crosslineRenderData.label.mesh.position.set(startz/crosslineRenderData.downFactor, 0, 0);
+        }
+    }
+
+    depthUpdateBase ({plane:model.get("depth_slice"), starty: starty});
+    inlineUpdateBase (model.get("il_slice"), startx, true);
+    crosslineUpdateBase (model.get("xl_slice"), startz, true);
+
+    if (labelOptions.length > 0) {
+        depthUpdateLabel({plane:model.get("depth_slice_labels"), starty: starty});
+        inlineUpdateLabel(model.get("il_slice_labels"), startx, true);
+        crosslineUpdateLabel(model.get("xl_slice_labels"), startz, true);
+    }
 
     function updateChartPlane() {
 
-        const data = model.get("data");
-        const dim  = model.get("dimensions");
+        const dataToRender = model.get("data");
+        const doShowLabel = showLabel;
 
-        data.forEach((plane, idx) => {
-            const texture = plane.texture;
-            const plane_span = plane.span_through;
-            const idx_plane  = plane.index;
-            const alpha = plane.alpha * 255 || 255;
-            const plane_cmap = plane.cmap || null;
+        let rendered = [];
 
-            let rgbArray = null;
-            if ("depth" == plane_span) {
-                if (rgbArraysDepthPool.length < countArrayDepth) {
-                    countArrayDepth += 1;
-                    rgbArraysDepthPool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
-                    rgbArray = rgbArraysDepthPool[0];
-                } else {
-                    rgbArray = rgbArraysDepthPool[idx];
+        dataToRender.forEach((plane, idx) => {
+
+            const startx = +(dims.inline     / 2);
+            const startz = -(dims.crossline  / 2);
+            const starty = +(dims.depth      / 2);
+
+            if ("depth" == plane.span_through) {
+                if (plane.index != depthRenderData.index) {
+                    depthRenderData.index = plane.index
                 }
-            } else if ("inline" === plane_span) {
-                if (rgbArraysInlinePool.length < countArrayInline) {
-                    countArrayInline += 1;
-                    rgbArraysInlinePool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
-                    rgbArray = rgbArraysInlinePool[0];
+
+                if (!plane.is_label) {
+                    depthUpdateBase({plane:plane, starty:starty});
+                    scene.add(depthRenderData.base.mesh);
+                    rendered.push({
+                        slice: "Depth Slice", label: false,
+                        render: depthRenderData.base.mesh
+                    })
                 } else {
-                    rgbArray = rgbArraysInlinePool[idx];
+                    if (doShowLabel && depthRenderData.hasLabel) {
+                        depthUpdateLabel({plane:plane, starty:starty});
+                        scene.add(depthRenderData.label.mesh);
+                        rendered.push({
+                            slice: "Depth Slice", label: true,
+                            render: depthRenderData.label.mesh
+                        });
+                    }
                 }
-            } else if ("crossline" === plane_span) {
-                if (rgbArraysCrosslinePool.length < countArrayCrossline) {
-                    countArrayCrossline += 1;
-                    rgbArraysCrosslinePool.push( new Uint8ClampedArray(plane.width * plane.height * 4))
-                    rgbArray = rgbArraysCrosslinePool[0];
+
+            } else if ("inline" == plane.span_through) {
+                if (plane.index != inlineRenderData.index) {
+                    inlineRenderData.index = plane.index
+                }
+
+                if (!plane.is_label) {
+                    inlineUpdateBase(plane, startx);
+                    scene.add(inlineRenderData.base.mesh);
+                    rendered.push({
+                        slice: "Inline", label: false,
+                        render: inlineRenderData.base.mesh
+                    });
                 } else {
-                    rgbArray = rgbArraysCrosslinePool[idx];
+                    if (doShowLabel && inlineRenderData.hasLabel) {
+                        inlineUpdateLabel(plane, startx);
+                        scene.add(inlineRenderData.label.mesh);
+                        rendered.push({
+                            slice: "Inline", label: true,
+                            render: inlineRenderData.label.mesh
+                        });
+                    }
+                }
+            } else if ("crossline" == plane.span_through) {
+                if (plane.index != crosslineRenderData.index) {
+                    crosslineRenderData.index = plane.index
+                }
+
+                if (!plane.is_label) {
+                    crosslineUpdateBase(plane, startz);
+                    scene.add(crosslineRenderData.base.mesh);
+                    rendered.push({
+                        slice: "Crossline", label: false,
+                        render: crosslineRenderData.base.mesh
+                    })
+                } else {
+                    if (doShowLabel && crosslineRenderData.hasLabel ) {
+                        crosslineUpdateLabel(plane, startz);
+                        scene.add(crosslineRenderData.label.mesh);
+                        rendered.push({
+                            slice: "Crossline", label: true,
+                            render: crosslineRenderData.label.mesh
+                        })
+                    }
                 }
             } else {
-                rgbArray = null;
+                console.log("what the funkc");
             }
-
-
-            const startx = -(dim.inline  / 2);
-            const starty = +(dim.depth / 2);
-            const startz = +(dim.crossline  / 2);
-
-            // let pos = plane.pos.x || 0, plane.pos.y || 0, plane.pos.z || 0;
-            // const geom = new THREE.BufferGeometry();
-
-            const geom = new THREE.PlaneGeometry(
-                plane.width/10,
-                plane.height/10,
-            );
-
-
-            let rgbData = null;
-            if (!rgbArray) {
-                rgbData = grayscaleToRGB(plane.texture, plane.width * plane.height, alpha, plane_cmap, rgbArray);
-            } else {
-                grayscaleToRGB(plane.texture, plane.width * plane.height, alpha, plane_cmap, rgbArray);
-                rgbData = rgbArray;
-            }
-
-            const clampedArray = new Uint8ClampedArray(rgbData.length);
-            clampedArray.set(rgbData)
-            let image = new ImageData(clampedArray, plane.width, plane.height);
-            const dataTexture = new THREE.Texture(image,);
-
-            if ("depth" == plane_span) {
-                dataTexture.flipY = true;
-                dataTexture.flipX = true;
-                dataTexture.flipZ = true;
-            } else{
-                dataTexture.flipY = true;
-                dataTexture.flipX = true;
-                dataTexture.flipZ = true;
-            }
-            dataTexture.needsUpdate = true;
-            dataTexture.generateMipmaps = false;
-            dataTexture.magFilter = THREE.LinearFilter;
-            dataTexture.minFilter = THREE.LinearFilter;
-
-            let mesh = meshesPool[idx];
-            mesh.map = dataTexture
-
-
-            if ("crossline" === plane_span) { geom.translate(0, 0, (startz - idx_plane)/10); }
-            if ("inline"    === plane_span) { geom.translate(0, 0, (startx + idx_plane)/10) }
-            if ("depth"     === plane_span) { geom.translate(0, 0, (starty - idx_plane)/10) }
-
-            const planeMesh = new THREE.Mesh(geom, mesh);
-
-            if ( "crossline" === plane_span ) { planeMesh.rotation.y=-Math.PI/2; }
-            if ( "inline"    === plane_span ) { planeMesh.rotation.y=0; }
-            if ( "depth"     === plane_span ) { planeMesh.rotateX(-Math.PI/2); }
-
-            planeMesh.position.set(0, 0, 0);
-
-            scene.add(planeMesh);
-            chartObjects.push(planeMesh);
 
         });
+
+        rendered.forEach((obj) => {
+            // scene.add(obj.render);
+            chartObjects.push(obj);
+        });
+
+    }
+
+    // const sliceOptions = ["Inline", "Crossline", "Depth Slice"];
+    function clearChart() {
+        chartObjects.forEach((obj) => {
+            scene.remove(obj.render);
+            if (obj.render.geometry) obj.render.geometry.dispose();
+            if (obj.render.material) obj.render.material.dispose();
+            obj = {}
+        });
+        chartObjects = [];
     }
 
     function updateChart() {
         clearChart();
         updateChartPlane();
-
     }
-
 
     // Create the proper hierarchy
     navigator.appendChild(boxFrameButton);
     navigator.appendChild(labelDiv);
     navigator.appendChild(resetButton);
+    navigator.appendChild(darkModeButton);
     toolbar.appendChild(navigator);
 
     // Add canvas to container first
@@ -619,16 +1004,35 @@ function render({model, el}) {
     updateChart();
 
     // Listen for data changes
-    model.on("change:current_label", updateChart);
     model.on("change:show_label", updateChart);
+    model.on("change:is_2d_view", updateChart);
     model.on("change:data", updateChart);
+    model.on("change:current_slice", updateChart);
+    model.on("change:current_label", updateChart);
+
+    // model.on("change:current_il_idx", updateChart);
+    // model.on("change:current_xl_idx", updateChart);
+    // model.on("change:current_z_idx", updateChart);
+
+    // model.on("change:current_il_idx", updateChartInlinePlane);
+    // model.on("change:current_xl_idx", updateChartCrosslinePlane);
+    // model.on("change:current_z_idx", updateChartDepthPlane);
+
+    // model.on("change:current_il_idx", updateChartInlinePlane);
+    // model.on("change:current_xl_idx", updateChartCrosslinePlane);
+    // model.on("change:current_z_idx", updateChartDepthPlane);
+
+    // model.on("change:data_il", updateChart);
+    // model.on("change:data_xl", updateChart);
+    // model.on("change:data_z", updateChart);
+
     model.on("change:dark_mode", updateBackground);
 
     // Animation loop
     let animationId;
     function animate() {
         animationId = requestAnimationFrame(animate);
-        controls.update();
+        if (!is2DView) controls.update();
         renderer.render(scene, camera);
     }
     animate();
@@ -643,4 +1047,3 @@ function render({model, el}) {
 }
 
 export default { render };
-

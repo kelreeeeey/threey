@@ -21,7 +21,7 @@ dependencies = [
   "seiscm == 0.1.1",
   "nupmy==1.26.4",
 ]
-readme = "README.md"
+
 
 # For projects not using `uv`, you can install these development dependencies with:
 # `pip install -e ".[dev]"`
@@ -48,3 +48,7 @@ dependencies = ["hatch-jupyter-builder>=0.5.0"]
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 npm = "npm"
 build_cmd = "build"
+
+
+[tool.marimo.runtime]
+output_max_bytes = 50_000_000

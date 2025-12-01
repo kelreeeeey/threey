@@ -19,7 +19,7 @@ dependencies = [
   "dask >= 2025.0.0",
   "matplotlib == 3.10.5",
   "seiscm == 0.1.1",
-  "nupmy==1.26.4",
+  "numpy==1.26.4",
 ]
 
 

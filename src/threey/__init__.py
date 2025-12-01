@@ -4,6 +4,8 @@ import pathlib
 import anywidget
 import traitlets
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 
 try:
     __version__ = importlib.metadata.version("threey")
@@ -96,6 +98,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
     _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
     _css = pathlib.Path(__file__).parent / "static" / "widget.css"
 
+    _kind = traitlets.Any().tag(sync=True)
+
     data = traitlets.List().tag(sync=True)
 
     data_il = traitlets.List().tag(sync=True)
@@ -136,11 +140,12 @@ class Seismic3DViewer(anywidget.AnyWidget):
 
     def __init__(self, *args, **kwargs):
         if "width" not in kwargs:
-            kwargs.update({"width": 800})
+            kwargs.update({"width": 1000})
         if "height" not in kwargs:
-            kwargs.update({"height": 800})
+            kwargs.update({"height": 1200})
         super().__init__(*args, **kwargs)
         self.on_msg(self._handle_custom_msg)
+        self._kind = "Seismic3DViewer"
 
         self.dimension = list(x for x in kwargs['dimensions'].values())
         self.label_list = list(kwargs['labels'].keys())
@@ -249,7 +254,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
             texture = self.labels[self.current_label][:, self.current_il_idx, :],
             index = self.current_il_idx,
             axis = "inline",
-            **self.kwargs_label
+            **self.kwargs_label,
+            is_rgba=False,
         )
         self.xl_slice_labels = self._get_slice(
             width = self.dimensions['inline'],
@@ -257,7 +263,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
             texture = self.labels[self.current_label][:, :, self.current_xl_idx],
             index = self.current_xl_idx,
             axis = "crossline",
-            **self.kwargs_label
+            **self.kwargs_label,
+            is_rgba=False,
         )
         self.depth_slice_labels = self._get_slice(
             width = self.dimensions['inline'],
@@ -265,7 +272,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
             texture = self.labels[self.current_label][self.current_z_idx, :, :],
             index = self.current_z_idx,
             axis = "depth",
-            **self.kwargs_label
+            **self.kwargs_label,
+            is_rgba=False,
         )
 
     def _handle_custom_msg(self, data, buffers):
@@ -302,6 +310,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     alpha=1,
                     cmap="seismic",
                     is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -317,6 +326,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     alpha=1,
                     cmap="seismic",
                     is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -331,7 +341,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     axis = "crossline",
                     alpha=1,
                     cmap="seismic",
-                    is_label=False
+                    is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -346,7 +357,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     axis = "crossline",
                     alpha=1,
                     cmap="seismic",
-                    is_label=False
+                    is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -360,7 +372,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     axis = "depth",
                     alpha=1,
                     cmap="seismic",
-                    is_label=False
+                    is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -375,7 +388,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     axis = "depth",
                     alpha=1,
                     cmap="seismic",
-                    is_label=False
+                    is_label=False,
+                    is_rgba=False,
                 )
                 if self.show_label:
                     self._update_label(self.current_slice)
@@ -444,14 +458,20 @@ class Seismic3DViewer(anywidget.AnyWidget):
             data_max = np.nanmax(data)
             return (data - data_min)/(data_max - data_min)
 
-    def _get_slice(self, height, width, texture, index, axis, alpha=1, cmap="gray", is_label=True):
+    def _get_slice(self, height, width, texture, index, axis, alpha=1, cmap="gray", is_label=True, **kwargs):
         _t = []
-        if axis == "depth":
-            for x in texture.T:
-                _t += x.astype(np.float16).tolist()
+        is_rgba = kwargs.get("is_rgba", True)
+        color_map = plt.get_cmap(cmap)
+        if not is_rgba:
+            if axis == "depth":
+                _t = texture.T.flatten().astype(np.float16).tolist()
+            else:
+                _t = texture.flatten().astype(np.float16).tolist()
         else:
-            for x in texture:
-                _t += x.astype(np.float16).tolist()
+            if axis == "depth":
+                _t = (color_map(texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+            else:
+                _t = (color_map(texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
 
         return {
             "height": height,
@@ -461,7 +481,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
             "span_through": axis, # xy
             "alpha":alpha,
             "cmap": cmap,
-            "is_label": is_label
+            "is_label": is_label,
+            "is_rgba": is_rgba
         }
 
 

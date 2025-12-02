@@ -6,92 +6,74 @@ import traitlets
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import copy
 
 try:
     __version__ = importlib.metadata.version("threey")
 except importlib.metadata.PackageNotFoundError:
     __version__ = "unknown"
 
+try:
+    from rich import print
+except ModuleNotFoundError:
+    print
+
 import marimo as mo
 
-class ThreeWidget(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
+class RendreData:
+    __slots__ = (
+        "plane_span",
+        "width",
+        "height",
+        "index",
+        "is_2d_view",
+        "has_label",
+        "show_label",
 
-    # Data for the 3D chart
-    kind = traitlets.Unicode().tag(sync=True)
+        "base",
+        "base_cmap",
+        "base_alpha",
+        "label",
+        "label_cmap",
+        "label_alpha",
 
-class ScatterThreeWidget(ThreeWidget):
-
-    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
-
-    # Data for the 3D chart
-    kind = traitlets.Unicode().tag(sync=True)
-    data = traitlets.List([]).tag(sync=True)
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(400).tag(sync=True)
-    show_grid = traitlets.Bool(True).tag(sync=True)
-    show_axes = traitlets.Bool(True).tag(sync=True)
-    dark_mode = traitlets.Bool(True).tag(sync=True)
-
-class Plane3DThreeWidget(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
-
-    # Data for the 3D chart
-    kind = traitlets.Unicode().tag(sync=True)
-    cmap = traitlets.Unicode().tag(sync=True)
-
-    data = traitlets.List([]).tag(sync=True)
-    data_source = None
-    label_source = None
-
-    # dimensions = {width: int, height: int, depth: int}
-    dimensions = traitlets.Dict().tag(sync=True)
-
-    width = traitlets.Int().tag(sync=True)
-    height = traitlets.Int().tag(sync=True)
-    show_grid = traitlets.Bool(True).tag(sync=True)
-    show_axes = traitlets.Bool(True).tag(sync=True)
-    show_frame = traitlets.Bool(True).tag(sync=True)
-    dark_mode = traitlets.Bool(True).tag(sync=True)
+        "is_rgba",
+    )
 
     def __init__(
         self,
-        *args,  **kwargs,
-    ):
-        # if "cmap" in kwargs: kwargs.update({"cmap":None})
-        kwargs.update({"kind":"plane"})
-        super(Plane3DThreeWidget, self).__init__(*args, **kwargs)
+        plane_span: str,
+        width: int,
+        height: int,
+        index: int = 0,
+        is_2d_view: bool = False,
+        has_label: bool = False,
+        show_label: bool = False,
 
-        return
+        base: list = [],
+        base_cmap: str = "seismic",
+        base_alpha: float = 1.0,
 
-class Zarr3DThreeWidget(anywidget.AnyWidget):
-    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
+        label: list = [],
+        label_cmap: str = "gray",
+        label_alpha: float = 0.5,
 
-    # Data for the 3D chart
-    kind = traitlets.Unicode().tag(sync=True)
-    cmap = traitlets.Unicode().tag(sync=True)
+    ) -> None:
 
-    store_path = traitlets.Unicode().tag(sync=True)
-    dimensions = traitlets.List([]).tag(sync=True)
-    coordinates = traitlets.List([]).tag(sync=True)
+        self.plane_span = plane_span
+        self.width = width
+        self.height = height
+        self.index = index
 
-    width = traitlets.Int().tag(sync=True)
-    height = traitlets.Int().tag(sync=True)
-    show_grid = traitlets.Bool(True).tag(sync=True)
-    show_axes = traitlets.Bool(True).tag(sync=True)
-    show_frame = traitlets.Bool(True).tag(sync=True)
-    dark_mode = traitlets.Bool(True).tag(sync=True)
+        self.is_2d_view = is_3d_view
+        self.has_label = has_label
 
-    def __init__(
-        self,
-        *args,  **kwargs,
-    ):
-        super(Zarr3DThreeWidget, self).__init__(*args, kind="zarr", **kwargs)
-        return
+        self.base = base # base.texture
+        self.base_cmap = base_cmap
+        self.label = label # label.texture
+        self.label_cmap = label_cmap
+        self.show_label = show_label
+
 
 class Seismic3DViewer(anywidget.AnyWidget):
 
@@ -100,34 +82,26 @@ class Seismic3DViewer(anywidget.AnyWidget):
 
     _kind = traitlets.Any().tag(sync=True)
 
+    _data = traitlets.List().tag(sync=True)
     data = traitlets.List().tag(sync=True)
+    width = traitlets.Int().tag(sync=False)
+    height = traitlets.Int().tag(sync=False)
 
-    data_il = traitlets.List().tag(sync=True)
-    data_xl = traitlets.List().tag(sync=True)
-    data_z  = traitlets.List().tag(sync=True)
-
-    il_slice = traitlets.Any().tag(sync=True)
-    xl_slice = traitlets.Any().tag(sync=True)
-    depth_slice = traitlets.Any().tag(sync=True)
-    width = traitlets.Int().tag(sync=True)
-    height = traitlets.Int().tag(sync=True)
-
-    kwargs_label = traitlets.Dict().tag(sync=True)
-    il_slice_labels = traitlets.Any().tag(sync=True)
-    xl_slice_labels = traitlets.Any().tag(sync=True)
-    depth_slice_labels = traitlets.Any().tag(sync=True)
-
-    is_2d_view = traitlets.Bool(True).tag(sync=True)
-    show_label = traitlets.Bool(True).tag(sync=True)
-    label_list = traitlets.List().tag(sync=True)
-    current_label = traitlets.Any().tag(sync=True)
     current_slice = traitlets.Any().tag(sync=True)
 
-    current_il_idx = traitlets.Int().tag(sync=True)
-    current_xl_idx = traitlets.Int().tag(sync=True)
-    current_z_idx = traitlets.Int().tag(sync=True)
+    label_list = traitlets.List().tag(sync=True)
+    show_label = traitlets.Bool(True).tag(sync=True)
+    current_label = traitlets.Any().tag(sync=True)
 
-    # dimensions = {width: int, height: int, depth: int}
+    current_inline_idx = traitlets.Any().tag(sync=True)
+    current_crossline_idx = traitlets.Any().tag(sync=True)
+    current_depth_idx = traitlets.Any().tag(sync=True)
+
+    kwargs_label = traitlets.Dict().tag(sync=True)
+
+    is_2d_view = traitlets.Bool(True).tag(sync=True)
+
+    # dimensions = {inline: int, crossline: int, depth: int}
     dimensions = traitlets.Dict().tag(sync=True)
     dimension = traitlets.List().tag(sync=True)
 
@@ -144,308 +118,337 @@ class Seismic3DViewer(anywidget.AnyWidget):
         if "height" not in kwargs:
             kwargs.update({"height": 1200})
         super().__init__(*args, **kwargs)
+
         self.on_msg(self._handle_custom_msg)
         self._kind = "Seismic3DViewer"
 
+        # need to validate user input of `kwargs_label`
+        # need to validate user input of `dimensions` tho
+
+        # dimension "not plural", is the value of dimensions (dict[str, int])
         self.dimension = list(x for x in kwargs['dimensions'].values())
         self.label_list = list(kwargs['labels'].keys())
 
-        self.data_source = kwargs['data_source']
+        self.data_source = kwargs['data_source'].obj
         self.vmin = np.nanmin(self.data_source) if not kwargs.get("vmin", False) else kwargs.get("vmin", False)
         self.vmax = np.nanmax(self.data_source) if not kwargs.get("vmax", False) else kwargs.get("vmax", False)
         self.data_source = self._normalize_data(self.data_source, vmin=self.vmin, vmax=self.vmax)
-        self.labels = {x:self._normalize_data(y) for x, y in kwargs['labels'].items()}
+        self.labels = {x:self._normalize_data(y.obj) for x, y in kwargs['labels'].items()}
 
-        self.current_il_idx = 0
-        self.current_xl_idx = 0
-        self.current_z_idx  = 0
+        self.current_inline_idx = 0
+        self.current_crossline_idx = 0
+        self.current_depth_idx  = 0
 
-        self.il_slice = self._get_slice(
-            width = self.dimensions['crossline'],
-            height = self.dimensions['depth'],
-            texture = self.data_source[:, self.current_il_idx, :],
-            index = self.current_il_idx,
-            axis = "inline",
-            alpha=1,
-            cmap="seismic",
-            is_label=False,
-        )
-        self.xl_slice = self._get_slice(
-            width = self.dimensions['inline'],
-            height = self.dimensions['depth'],
-            texture = self.data_source[:, :, self.current_xl_idx],
-            index = self.current_xl_idx,
-            axis = "crossline",
-            alpha=1,
-            cmap="seismic",
-            is_label=False,
-        )
-        self.depth_slice = self._get_slice(
-            width = self.dimensions['inline'],
-            height = self.dimensions['crossline'],
-            texture = self.data_source[self.current_z_idx, :, :],
-            index = self.current_z_idx,
-            axis = "depth",
-            alpha=1,
-            cmap="seismic",
-            is_label=False,
-        )
+        self.current_slice = "inline"
+        self.cmap_seis = plt.get_cmap("seismic")
 
-        if not self.is_2d_view:
-            self.data = [self.il_slice, self.xl_slice, self.depth_slice]
-        else:
-            self.data = [self.il_slice]
+        self._data = [
+            {
+                "span_through" : "depth",
+                "show_label": self.show_label,
+                "width" : self.dimensions['inline'],
+                "height" : self.dimensions['crossline'],
+                "index": self.current_depth_idx,
+                "base": {
+                    "alpha": 1.0,
+                    "cmap": "seismic",
+                    "texture" : self.convert_slice_to_texture(
+                        texture = self.data_source[self.current_depth_idx],
+                        axis = "depth",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    ),
+                    "is_label": False,
+                    "is_rgba": False
+                },
+                "label": None,
+                "has_label": False, },
 
-        self.current_slice = "Inline"
+            {
+                "span_through": "inline",
+                "show_label": self.show_label,
+                "width" : self.dimensions['crossline'],
+                "height" : self.dimensions['depth'],
+                "index": self.current_inline_idx,
+                "base": {
+                    "alpha": 1.0,
+                    "cmap": "seismic",
+                    "texture" : self.convert_slice_to_texture(
+                        texture = self.data_source[:, self.current_inline_idx, :],
+                        axis = "inline",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    ),
+                    "is_label": False,
+                    "is_rgba": False
+                },
+                "label": None,
+                "has_label": False, },
+
+            {
+                "span_through" : "crossline",
+                "show_label": self.show_label,
+                "width" : self.dimensions['inline'],
+                "height" : self.dimensions['depth'],
+                "index": self.current_crossline_idx,
+                "base": {
+                    "alpha": 1.0,
+                    "cmap": "seismic",
+                    "texture" : self.convert_slice_to_texture(
+                        texture = self.data_source[:, :, self.current_crossline_idx],
+                        axis = "crossline",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    ),
+                    "is_label": False,
+                    "is_rgba": False
+                },
+                "label": None,
+                "has_label": False, },
+
+        ]
 
         if len(self.label_list) != 0:
             self.current_label = self.label_list[0]
             self.kwargs_labels = kwargs["kwargs_labels"]
+            self.cmap_labels = {x:plt.get_cmap(y['cmap']) for x, y in self.kwargs_labels.items()}
             self.kwargs_label = self.kwargs_labels[self.current_label]
-            self.il_slice_labels    = self._get_slice(
-                width = self.dimensions['crossline'],
-                height = self.dimensions['depth'],
-                texture = self.labels[self.current_label][:, self.current_il_idx, :],
-                index = self.current_il_idx,
-                axis = "inline",
-                **self.kwargs_label
-            )
-            self.xl_slice_labels    = self._get_slice(
-                width = self.dimensions['inline'],
-                height = self.dimensions['depth'],
-                texture = self.labels[self.current_label][:, :, self.current_xl_idx],
-                index = self.current_xl_idx,
-                axis = "crossline",
-                **self.kwargs_label
-            )
-            self.depth_slice_labels = self._get_slice(
-                width = self.dimensions['inline'],
-                height = self.dimensions['crossline'],
-                texture = self.labels[self.current_label][self.current_z_idx, :, :],
-                index = self.current_z_idx,
-                axis = "depth",
-                **self.kwargs_label
-            )
 
-            if self.show_label:
-                if not self.is_2d_view:
-                    self.data += [self.il_slice_labels, self.xl_slice_labels, self.depth_slice_labels]
-                else:
-                    self.data += [self.il_slice_labels]
+            self._data[0]['label'] =  {
+                "alpha": self.kwargs_labels[self.current_label].get('alpha',0.5),
+                "cmap": self.kwargs_labels[self.current_label].get('cmap', "gray"),
+                "texture" : self.convert_slice_to_texture(
+                    texture = self.labels[self.current_label][self.current_depth_idx],
+                    axis = "depth",
+                    alpha = self.kwargs_labels[self.current_label].get('alpha', 0.5),
+                    is_label = True,
+                    is_rgba = False
+                ),
+                "is_label": True,
+                "is_rgba": False
+            }
+            self._data[0]["has_label"] = True
 
+            self._data[1]['label'] = {
+                "alpha": self.kwargs_labels[self.current_label].get('alpha',0.5),
+                "cmap": self.kwargs_labels[self.current_label].get('cmap', "gray"),
+                "texture" : self.convert_slice_to_texture(
+                    texture = self.labels[self.current_label][:, self.current_inline_idx, :],
+                    axis = "inline",
+                    alpha = self.kwargs_labels[self.current_label].get('alpha', 0.5),
+                    is_label = True,
+                    is_rgba = False
+                ),
+                "is_label": True,
+                "is_rgba": False
+            }
+            self._data[1]["has_label"] = True
+
+            self._data[2]['label'] = {
+                "alpha": self.kwargs_labels[self.current_label].get('alpha',0.5),
+                "cmap": self.kwargs_labels[self.current_label].get('cmap', "gray"),
+                "texture" : self.convert_slice_to_texture(
+                    texture = self.labels[self.current_label][:, :, self.current_crossline_idx],
+                    axis = "crossline",
+                    alpha = self.kwargs_labels[self.current_label].get('alpha', 0.5),
+                    is_label = True,
+                    is_rgba = False
+                ),
+                "is_label": True,
+                "is_rgba": False
+            }
+            self._data[2]["has_label"] = True
 
         else:
             self.current_label = None
             self.kwargs_labels = {}
+            self.cmap_labels = {}
             self.kwargs_label = {}
-            self.il_slice_labels    = None
-            self.xl_slice_labels    = None
+            self.inline_slice_labels    = None
+            self.crossline_slice_labels    = None
             self.depth_slice_labels = None
 
-        # self.data_il = [ self.il_slice ]
-        # self.data_xl = [ self.xl_slice ]
-        # self.data_z  = [ self.depth_slice ]
+        self.data = copy.deepcopy(self._data)
 
+        return None
+ 
+    def _handle_custom_msg(self, data, buffers, *args, **kwargs):
 
-    def _update_label(self, current_slice):
-        self.il_slice_labels    = self._get_slice(
-            width = self.dimensions['crossline'],
-            height = self.dimensions['depth'],
-            texture = self.labels[self.current_label][:, self.current_il_idx, :],
-            index = self.current_il_idx,
-            axis = "inline",
-            **self.kwargs_label,
-            is_rgba=False,
-        )
-        self.xl_slice_labels = self._get_slice(
-            width = self.dimensions['inline'],
-            height = self.dimensions['depth'],
-            texture = self.labels[self.current_label][:, :, self.current_xl_idx],
-            index = self.current_xl_idx,
-            axis = "crossline",
-            **self.kwargs_label,
-            is_rgba=False,
-        )
-        self.depth_slice_labels = self._get_slice(
-            width = self.dimensions['inline'],
-            height = self.dimensions['crossline'],
-            texture = self.labels[self.current_label][self.current_z_idx, :, :],
-            index = self.current_z_idx,
-            axis = "depth",
-            **self.kwargs_label,
-            is_rgba=False,
-        )
+        t = data['type']
+        current_slice_index, new_show_label, new_current_label = data['data']
 
-    def _handle_custom_msg(self, data, buffers):
-        _type = data.pop("type")
-        _data = data.pop("data")
-        match (_type, _data):
+        self.show_label = new_show_label
+        self.current_label = new_current_label
 
-            case "is-show-label", _:
-                self.show_label = _data
-                if self.show_label:
-                    self._update_label(self.current_slice)
+        match t:
+            case "change_all_label_slice" :
+                self.current_label = new_current_label
+                alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
+                cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
 
-            case "label-to-show", _:
-                self.current_label = _data
-                if self.show_label:
-                    self._update_label(self.current_slice)
+                texture = self.labels[self.current_label][self.current_depth_idx]
+                self.data[0]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                self._data[0]['label'].update({
+                    "texture" : self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "depth",
+                        alpha = alpha,
+                        is_label = True,
+                        is_rgba = False
+                    ),
+                    "alpha": alpha,
+                    "cmap": cmap,
+                })
 
-            case "is-2d-view", _:
-                self.is_2d_view = _data
-                if self.show_label:
-                    self._update_label(self.current_slice)
+                texture = self.labels[self.current_label][:, self.current_inline_idx, :]
+                self.data[1]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                self._data[1]['label'].update({
+                    "texture" : self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "inline",
+                        alpha = alpha,
+                        is_label = True,
+                        is_rgba = False
+                    ),
+                    "alpha": alpha,
+                    "cmap": cmap,
+                })
 
-            case "is-dark-mode", _:
-                self.dark_mode = _data
+                texture = self.labels[self.current_label][:, :, self.current_crossline_idx]
+                self.data[2]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                self._data[2]['label'].update({
+                    "texture" : self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "crossline",
+                        alpha = alpha,
+                        is_label = True,
+                        is_rgba = False
+                    ),
+                    "alpha": alpha,
+                    "cmap": cmap,
+                })
 
-            case "slice-to-show", "Inline":
-                self.current_slice = _data
-                self.il_slice      = self._get_slice(
-                    width = self.dimensions['crossline'],
-                    height = self.dimensions['depth'],
-                    texture = self.data_source[:, self.current_il_idx, :],
-                    index = self.current_il_idx,
-                    axis = "inline",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
-            case "data-Inline", _:
-                self.current_slice = "Inline"
-                self.current_il_idx = _data
-                self.il_slice       = self._get_slice(
-                    width = self.dimensions['crossline'],
-                    height = self.dimensions['depth'],
-                    texture = self.data_source[:, self.current_il_idx, :],
-                    index = self.current_il_idx,
-                    axis = "inline",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
+                self._data[0].update({"show_label": new_show_label})
+                self._data[1].update({"show_label": new_show_label})
+                self._data[2].update({"show_label": new_show_label})
+                self.data[0].update({"show_label": new_show_label})
+                self.data[1].update({"show_label": new_show_label})
+                self.data[2].update({"show_label": new_show_label})
+                self.send_state("_data")
 
-            case "slice-to-show", "Crossline":
-                self.current_slice = _data
-                self.xl_slice       = self._get_slice(
-                    width = self.dimensions['inline'],
-                    height = self.dimensions['depth'],
-                    texture = self.data_source[:, :, self.current_xl_idx],
-                    index = self.current_xl_idx,
-                    axis = "crossline",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
-            case "data-Crossline", _:
-                self.current_slice = "Crossline"
-                self.current_xl_idx = _data
-                self.xl_slice       = self._get_slice(
-                    width = self.dimensions['inline'],
-                    height = self.dimensions['depth'],
-                    texture = self.data_source[:, :, self.current_xl_idx],
-                    index = self.current_xl_idx,
-                    axis = "crossline",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
-            case "slice-to-show", "Depth Slice":
-                self.current_slice = _data
-                self.depth_slice = self._get_slice(
-                    width = self.dimensions['inline'],
-                    height = self.dimensions['crossline'],
-                    texture = self.data_source[self.current_z_idx, :, :],
-                    index = self.current_z_idx,
-                    axis = "depth",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
-            case "data-Depth Slice", _:
-                self.current_slice = "Depth Slice"
-                self.current_z_idx = _data
-                self.depth_slice = self._get_slice(
-                    width = self.dimensions['inline'],
-                    height = self.dimensions['crossline'],
-                    texture = self.data_source[self.current_z_idx, :, :],
-                    index = self.current_z_idx,
-                    axis = "depth",
-                    alpha=1,
-                    cmap="seismic",
-                    is_label=False,
-                    is_rgba=False,
-                )
-                if self.show_label:
-                    self._update_label(self.current_slice)
+            case "depth,show_label,current_label":
+                self.current_depth_idx = current_slice_index
 
-            case "current-slice", _:
-                self.current_slice = _data
+                self.data[0].update({ "index": current_slice_index })
+                self._data[0].update({ "index": current_slice_index })
 
-            case "label-to-select", _:
-                self.kwargs_label = self.kwargs_labels[self.current_label]
-                if self.show_label:
-                    self._update_label(self.current_slice)
+                texture = self.data_source[self.current_depth_idx]
+                self.data[0].update({ "textute": texture })
+                self._data[0]['base'].update({
+                    "texture" : self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "depth",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    ),
+                })
+                if new_show_label:
+                    texture = self.labels[self.current_label][self.current_depth_idx]
+                    alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
+                    cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
+                    self.data[0]['label'].update({"texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    self._data[0]['label'].update({
+                        "texture" : self.convert_slice_to_texture(
+                            texture = texture,
+                            axis = "depth",
+                            alpha = alpha,
+                            is_label = True,
+                            is_rgba = False
+                        ),
+                        "alpha": alpha,
+                        "cmap": cmap,
+                    })
+                self.send_state("_data")
 
-            case (_, _):
-                print(_type, _data)
+            case "inline,show_label,current_label":
+                self.current_inline_idx = current_slice_index
 
-        _data =[]
-        if self.is_2d_view:
-            if self.current_slice == "Inline":
-                _data = [self.il_slice]
-                self.data_il = [ self.il_slice ]
-                if self.show_label:
-                    self._update_label(self.current_slice)
-                    _data.append(self.il_slice_labels)
-                    self.data_il.append(self.il_slice_labels)
-            elif self.current_slice == "Crossline":
-                _data = [self.xl_slice]
-                self.data_xl = [ self.xl_slice ]
-                if self.show_label:
-                    self._update_label(self.current_slice)
-                    _data.append(self.xl_slice_labels)
-                    self.data_xl.append(self.xl_slice_labels)
-            else:
-                _data = [self.depth_slice]
-                self.data_z  = [ self.depth_slice ]
-                if self.show_label:
-                    self._update_label(self.current_slice)
-                    _data.append(self.depth_slice_labels)
-                    self.data_z.append(self.depth_slice_labels)
-        else:
-            _data = [self.il_slice, self.xl_slice, self.depth_slice]
-            if self.show_label:
-                self._update_label(self.current_slice)
-                _data += [self.il_slice_labels, self.xl_slice_labels, self.depth_slice_labels]
+                self.data[1].update({ "index": current_slice_index })
+                self._data[1].update({ "index": current_slice_index })
 
-        self.data = _data
-        if self.show_label:
-            self.send_state("current_label")
+                texture = self.data_source[:, self.current_inline_idx, :]
+                self._data[1]['base'].update({"texture":texture})
+                self._data[1]['base'].update({
+                    "texture" : self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "inline",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    )
+                })
+                if new_show_label:
 
-        self.send_state("current_slice")
-        self.send_state("data")
-        # self.send_state("data_il")
-        # self.send_state("data_xl")
-        # self.send_state("data_z")
-        self.send_state("current_il_idx")
-        self.send_state("current_xl_idx")
-        self.send_state("current_z_idx" )
+                    texture = self.labels[self.current_label][:, self.current_inline_idx, :]
+                    alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
+                    cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
+                    self.data[1]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    self._data[1]['label'].update({
+                        "texture" : self.convert_slice_to_texture(
+                            texture = texture,
+                            axis = "inline",
+                            alpha = alpha,
+                            is_label = True,
+                        ),
+                        "alpha": alpha,
+                        "cmap": cmap,
+                    })
+                self.send_state("_data")
+
+            case "crossline,show_label,current_label":
+                self.current_crossline_idx = current_slice_index
+
+                self._data[2].update({ "index": current_slice_index })
+                self.data[2].update({ "index": current_slice_index })
+
+                texture = self.data_source[:, :, self.current_crossline_idx]
+                self.data[2]['base'].update({"texture":texture})
+                self._data[2]['base'].update({
+                    "texture": self.convert_slice_to_texture(
+                        texture = texture,
+                        axis = "crossline",
+                        alpha = 1.0,
+                        is_label = False,
+                        is_rgba = False
+                    )
+                })
+                if new_show_label:
+                    texture = self.labels[self.current_label][:, :, self.current_crossline_idx]
+                    alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
+                    cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
+                    self.data[2]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    self._data[2]['label'].update({
+                        "texture" : self.convert_slice_to_texture(
+                            texture = texture,
+                            axis = "crossline",
+                            alpha = alpha,
+                            is_label = True,
+                            is_rgba = False
+                        ),
+                        "alpha": alpha,
+                        "cmap": cmap,
+                    })
+                self.send_state("_data")
+
+            case _:
+                data_to_update = {}
+                base_to_update = {}
+                label_to_update = {}
+
 
     def _normalize_data(self, data, vmin=None, vmax=None):
         """Normalize data to 0-1 range for texture rendering"""
@@ -458,32 +461,33 @@ class Seismic3DViewer(anywidget.AnyWidget):
             data_max = np.nanmax(data)
             return (data - data_min)/(data_max - data_min)
 
-    def _get_slice(self, height, width, texture, index, axis, alpha=1, cmap="gray", is_label=True, **kwargs):
+
+    def convert_slice_to_texture(self, texture, axis: str, alpha: float, is_label: bool, is_rgba: bool=False) -> list[float]:
         _t = []
-        is_rgba = kwargs.get("is_rgba", True)
-        color_map = plt.get_cmap(cmap)
         if not is_rgba:
             if axis == "depth":
                 _t = texture.T.flatten().astype(np.float16).tolist()
+                return _t
             else:
                 _t = texture.flatten().astype(np.float16).tolist()
+                return _t
+
         else:
             if axis == "depth":
-                _t = (color_map(texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                if not is_label:
+                    _t = (self.cmap_seis(texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                    return _t
+                else:
+                    _t = (self.cmap_labels[self.current_label](texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                    return _t
+
             else:
-                _t = (color_map(texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                if not is_label:
+                    _t = (self.cmap_seis(texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                    return _t
+                else:
+                    _t = (self.cmap_labels[self.current_label](texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
+                    return _t
 
-        return {
-            "height": height,
-            "width" : width,
-            "texture": _t,
-            "index": index,
-            "span_through": axis, # xy
-            "alpha":alpha,
-            "cmap": cmap,
-            "is_label": is_label,
-            "is_rgba": is_rgba
-        }
+__all__ = ["Plane3DThreeWidget",]
 
-
-__all__ = ["ScatterThreeWidget", "Plane3DThreeWidget",]

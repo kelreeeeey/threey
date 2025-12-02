@@ -1,0 +1,22 @@
+{
+    "inline" : {
+        "type": "inline,show_label,current_label",
+        "data": [0, true, "fault"]
+    },
+    "crossline" : {
+        "type": "crossline,show_label,current_label",
+        "data": [0, true, "fault"]
+    },
+    "depth" : {
+        "type": "depth,show_label,current_label",
+        "data": [0, true, "fault"]
+    },
+    "show_label" : {
+        "type" : "show_current_label",
+        "data" : [true]
+    },
+    "change_label" : {
+        "type" : "change_all_label_slice",
+        "data" : ["inline", "crossline", "depth" ]
+    }
+}

@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.18.1"
-app = marimo.App(width="columns", sql_output="polars")
+app = marimo.App(width="medium", sql_output="polars")
 
 
 @app.cell(hide_code=True)
@@ -21,6 +21,77 @@ def _(mo, pathlib):
 def _(mo, sample_index, syntheticdata_group):
     if "synthetic" in str(syntheticdata_group.store_path):
         mo.output.append(sample_index.center())
+    return
+
+
+@app.cell
+def _():
+    import anywidget
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    <!-- - [ ] observe
+    ```pydoc
+    observe(
+        self,
+        handler: 't.Callable[..., t.Any]',
+        names: 'Sentinel | str | t.Iterable[Sentinel | str]' = traitlets.All,
+        type: 'Sentinel | str' = 'change'
+    ) -> 'None'
+        Setup a handler to be called when a trait changes.
+
+        This is used to setup dynamic notifications of trait changes.
+
+        Parameters
+        ----------
+        handler : callable
+            A callable that is called when a trait changes. Its
+            signature should be ``handler(change)``, where ``change`` is a
+            dictionary. The change dictionary at least holds a 'type' key.
+            * ``type``: the type of notification.
+            Other keys may be passed depending on the value of 'type'. In the
+            case where type is 'change', we also have the following keys:
+            * ``owner`` : the HasTraits instance
+            * ``old`` : the old value of the modified trait attribute
+            * ``new`` : the new value of the modified trait attribute
+            * ``name`` : the name of the modified trait attribute.
+        names : list, str, All
+            If names is All, the handler will apply to all traits.  If a list
+            of str, handler will apply to all names in the list.  If a
+            str, the handler will apply just to that name.
+        type : str, All (default: 'change')
+            The type of notification to filter by. If equal to All, then all
+            notifications are passed to the observe handler.
+    ```
+    - [ ] -->
+    """)
+    return
+
+
+@app.cell
+def _():
+    # help(anywidget.AnyWidget.on_msg)
+    return
+
+
+@app.cell
+def _():
+    # area.kwargs_labels[area.current_label]
+    return
+
+
+@app.cell
+def _():
+    # area.data
+    return
+
+
+@app.cell
+def _():
+    # area.current_crossline_idx, area.current_inline_idx, area.current_depth_idx
     return
 
 
@@ -64,12 +135,12 @@ def _(syntheticdata_group):
 def _(list_keys, sample_index, syntheticdata_group):
     if "seis" in list_keys:
         syntheticdata = syntheticdata_group['seis']
-        sample_cube = syntheticdata[sample_index.value][:, :, :]
-        vmin, vmax = sample_cube.min(), sample_cube.max()
+        sample_cube = memoryview(syntheticdata[sample_index.value][:, :, :])
+        vmin, vmax = syntheticdata[sample_index.value].min(), syntheticdata[sample_index.value].max()
     elif "raw" in list_keys:
         syntheticdata = syntheticdata_group['raw']
         vmin, vmax = syntheticdata.attrs['min'], syntheticdata.attrs['max'] 
-        sample_cube = syntheticdata[10:700, :, :]
+        sample_cube = memoryview(syntheticdata[10:700, :, :])
 
     labels = {}
     kwargs_labels = {}
@@ -77,19 +148,19 @@ def _(list_keys, sample_index, syntheticdata_group):
     if 'fault' in list_keys and 'raw' in list_keys:
         faultdata = syntheticdata_group['fault']
         sample_fault = faultdata[10:700, :, :]
-        labels["fault"] = sample_fault
+        labels["fault"] = memoryview(sample_fault)
         kwargs_labels['fault'] = dict(alpha=0.5, cmap="gray")
 
     if 'fault' in list_keys and 'raw' not in list_keys:
         faultdata = syntheticdata_group['fault']
         sample_fault = faultdata[sample_index.value][:, :, :]
-        labels["fault"] = sample_fault
+        labels["fault"] = memoryview(sample_fault)
         kwargs_labels['fault'] = dict(alpha=0.5, cmap="gray")
 
     if "rgt" in list_keys:
         rgtdata = syntheticdata_group['rgt']
         sample_rgt = rgtdata[sample_index.value][:, :, :]
-        labels["rgt"] = sample_rgt
+        labels["rgt"] = memoryview(sample_rgt)
         kwargs_labels['rgt'] = dict(alpha=0.75, cmap="jet")
 
     dimensions = dict(inline=sample_cube.shape[1], crossline=sample_cube.shape[2], depth=sample_cube.shape[0])

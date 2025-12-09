@@ -216,31 +216,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
         updateCameraMode();
     });
 
-    // 3D Slice slider and navigator
-    const viewCurrentSliceButton = create3DToolbarSelection(model, "Select Slice to Show", sliceOptions, (e) => {
-        currentSlice = sliceOptions[parseInt(e.target.value)];
-        sliceOptions.forEach((slice, idx) => {
-            if (slice === currentSlice) {
-                currentSliceIndex = idx;
-                sliderSlice.setValue(sliceValueByIndex[idx], slice, dim, idx);
-                currentSlice = slice;
-                model.send({
-                    type: customMes[sliceOptions[currentSliceIndex]].type,
-                    data: [
-                        sliceValueByIndex[currentSliceIndex],
-                        showLabel,
-                        currentLabel
-                    ]
-                })
-                if (is2DView) {
-                    updateCamera2DProperties(currentSlice);
-                }
-                updateCameraMode();
-            }
-        });
-        model.save_changes();
-    });
-
     let sliderSlice = create3DStyledSlider({
         model : model,
         sliderId : "dynamic-slider",
@@ -253,7 +228,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     sliderSlice.slider.addEventListener("change", (e) => {
         const sliderValue = parseInt(parseInt(e.target.value));
         sliceValueByIndex[currentSliceIndex] = sliderValue;
-        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
         model.send({
             type: customMes[sliceOptions[currentSliceIndex]].type,
             data: [
@@ -262,14 +236,44 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 currentLabel
             ]
         })
+        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
     });
 
+
+    // 3D Slice slider and navigator
+    const viewCurrentSliceButton = create3DToolbarSelection(model, "Select Slice to Show", sliceOptions, () => {});
+    viewCurrentSliceButton.addEventListener("change", (e) => {
+        currentSlice = sliceOptions[parseInt(e.target.value)];
+        currentSliceIndex = parseInt(e.target.value);
+
+        // sliceOptions.forEach((slice, idx) => {
+        //     if (slice === currentSlice) {
+        //         currentSliceIndex = idx;
+        //     }
+        // });
+
+        model.send({
+            type: customMes[sliceOptions[currentSliceIndex]].type,
+            data: [
+                sliceValueByIndex[currentSliceIndex],
+                showLabel,
+                currentLabel
+            ]
+        });
+
+        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], currentSlice, dims, currentSliceIndex);
+        if (is2DView) {
+            updateCamera2DProperties(currentSlice);
+        }
+        updateCameraMode();
+        model.save_changes();
+    })
+
     const buttonNextSlice = create3DToolbarButton(model, `▶`, () => {
-        const newVal = sliderSlice.getValue() + sliderSlice.getValueIncre();
+        const newVal = sliceValueByIndex[currentSliceIndex] + sliderSlice.getValueIncre();
         const maxDim = dims[sliceOptions[currentSliceIndex]]-1;
         if (sliceValueByIndex[currentSliceIndex] <= maxDim) {
             sliceValueByIndex[currentSliceIndex] = maxDim <= newVal ? maxDim : newVal;
-            sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
             model.send({
                 type: customMes[sliceOptions[currentSliceIndex]].type,
                 data: [
@@ -279,12 +283,12 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 ]
             });
         }
+        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
     });
     const buttonPrevSlice = create3DToolbarButton(model, `◀`, () => {
-        const newVal = sliderSlice.getValue() - sliderSlice.getValueIncre();
+        const newVal = sliceValueByIndex[currentSliceIndex] - sliderSlice.getValueIncre();
         if (sliceValueByIndex[currentSliceIndex] >= 0) {
             sliceValueByIndex[currentSliceIndex] = 0 >= newVal ? 0 : newVal;
-            sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
             model.send({
                 type: customMes[sliceOptions[currentSliceIndex]].type,
                 data: [
@@ -294,6 +298,8 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 ]
             });
         }
+        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
+
     });
 
     // Label selection
@@ -312,7 +318,8 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
             ]
         });
     });
-    const labelSelect = create3DToolbarSelection(model, "Label", labelOptions, (e) => {
+    const labelSelect = create3DToolbarSelection(model, "Label", labelOptions, () => {})
+    labelSelect.addEventListener("change", (e) => {
         currentLabel = labelOptions[parseInt(e.target.value)];
         labelOptions.forEach((slice, idx) => {
             if (slice === currentLabel) {

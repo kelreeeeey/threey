@@ -20,6 +20,69 @@ except ModuleNotFoundError:
 
 import marimo as mo
 
+class ThreeWidget(anywidget.AnyWidget):
+    """An anywidget for rendering interactive 3D scatter plots with three.js.
+    Credits: https://github.com/koaning/mothree
+
+    Parameters
+    ----------
+    data : list of dict
+        Chart data as list of points: [{"x": float, "y": float, "z": float, "color": str, "size": float}, ...]
+        - x, y, z: 3D coordinates (required)
+        - color: Any CSS color string (e.g., "red", "#ff0000", "rgb(255,0,0)")
+        - size: Optional per-point size (default: 0.1)
+    width : int, default=600
+        Width of the chart in pixels
+    height : int, default=400
+        Height of the chart in pixels
+    show_grid : bool, default=False
+        Whether to show the grid helper
+    show_axes : bool, default=False
+        Whether to show the axes helper
+    dark_mode : bool, default=False
+        Whether to use dark mode (dark background with lighter grid/axes)
+
+    Notes
+    -----
+    - Uses lightweight point rendering for excellent performance (handles 100k+ points smoothly)
+    - Cell restart properly cleans up resources via cancelAnimationFrame and dispose()
+
+    Examples
+    --------
+    >>> # Create a 3D scatter plot
+    >>> data = [
+    ...     {"x": 1.0, "y": 2.0, "z": 3.0, "color": "red"},
+    ...     {"x": -1.0, "y": 1.0, "z": -2.0, "color": "#00ff00"},
+    ... ]
+    >>> widget = ThreeWidget(data=data)
+
+    >>> # Per-point sizes determined by data
+    >>> data_with_sizes = [
+    ...     {"x": 0, "y": 0, "z": 0, "color": "red", "size": 0.5},
+    ...     {"x": 1, "y": 1, "z": 1, "color": "blue", "size": 0.2},
+    ... ]
+    >>> widget = ThreeWidget(data=data_with_sizes)
+
+    >>> # With dark mode and no grid
+    >>> widget = ThreeWidget(data=data, dark_mode=True, show_grid=False, width=800, height=600)
+    """
+
+    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
+
+    # Data for the 3D chart
+    _kind = traitlets.Any("Scatter3DViewer").tag(sync=True)
+    data = traitlets.List([]).tag(sync=True)
+    width = traitlets.Int(600).tag(sync=True)
+    height = traitlets.Int(400).tag(sync=True)
+    show_grid = traitlets.Bool(False).tag(sync=True)
+    show_axes = traitlets.Bool(False).tag(sync=True)
+    dark_mode = traitlets.Bool(False).tag(sync=True)
+
+
+
+
+
 class RendreData:
     __slots__ = (
         "plane_span",
@@ -140,7 +203,8 @@ class Seismic3DViewer(anywidget.AnyWidget):
         self.current_depth_idx  = 0
 
         self.current_slice = "inline"
-        self.cmap_seis = plt.get_cmap("seismic")
+        self.cmap_data = kwargs.get("cmap_data", "seismic")
+        self.cmap_seis = plt.get_cmap(self.cmap_data)
 
         self._data = [
             {
@@ -151,7 +215,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 "index": self.current_depth_idx,
                 "base": {
                     "alpha": 1.0,
-                    "cmap": "seismic",
+                    "cmap": self.cmap_data,
                     "texture" : self.convert_slice_to_texture(
                         texture = self.data_source[self.current_depth_idx],
                         axis = "depth",
@@ -173,7 +237,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 "index": self.current_inline_idx,
                 "base": {
                     "alpha": 1.0,
-                    "cmap": "seismic",
+                    "cmap": self.cmap_data,
                     "texture" : self.convert_slice_to_texture(
                         texture = self.data_source[:, self.current_inline_idx, :],
                         axis = "inline",
@@ -195,7 +259,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 "index": self.current_crossline_idx,
                 "base": {
                     "alpha": 1.0,
-                    "cmap": "seismic",
+                    "cmap": self.cmap_data,
                     "texture" : self.convert_slice_to_texture(
                         texture = self.data_source[:, :, self.current_crossline_idx],
                         axis = "crossline",
@@ -340,6 +404,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 self.send_state("_data")
 
             case "depth,show_label,current_label":
+
                 self.current_depth_idx = current_slice_index
 
                 self.data[0].update({ "index": current_slice_index })
@@ -449,7 +514,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 base_to_update = {}
                 label_to_update = {}
 
-
     def _normalize_data(self, data, vmin=None, vmax=None):
         """Normalize data to 0-1 range for texture rendering"""
         if data.dtype == np.bool_ or data.dtype == bool:
@@ -460,7 +524,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
             data_min = np.nanmin(data)
             data_max = np.nanmax(data)
             return (data - data_min)/(data_max - data_min)
-
 
     def convert_slice_to_texture(self, texture, axis: str, alpha: float, is_label: bool, is_rgba: bool=False) -> list[float]:
         _t = []
@@ -489,5 +552,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     _t = (self.cmap_labels[self.current_label](texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
                     return _t
 
-__all__ = ["Plane3DThreeWidget",]
 
+
+__all__ = [ "ThreeWidget", "Seismic3DViewer", ]

@@ -12,7 +12,7 @@ def _(mo, pathlib):
             "synthetic 2": "C:/Users/LediaPed/Documents/synthetic-mtl.zarr",
         } | {x.name:str(x) for x in pathlib.Path(r"C:\Users\LediaPed\Documents\data-struktur-phr-zarr").iterdir()},
 
-        value="synthetic 1", label="Select Dataset")
+        value="Kerry3D", label="Select Dataset")
     select_dataset.center()
     return (select_dataset,)
 
@@ -72,30 +72,6 @@ def _(mo):
 
 
 @app.cell
-def _():
-    # help(anywidget.AnyWidget.on_msg)
-    return
-
-
-@app.cell
-def _():
-    # area.kwargs_labels[area.current_label]
-    return
-
-
-@app.cell
-def _():
-    # area.data
-    return
-
-
-@app.cell
-def _():
-    # area.current_crossline_idx, area.current_inline_idx, area.current_depth_idx
-    return
-
-
-@app.cell
 def _(area):
     area
     return
@@ -140,14 +116,14 @@ def _(list_keys, sample_index, syntheticdata_group):
     elif "raw" in list_keys:
         syntheticdata = syntheticdata_group['raw']
         vmin, vmax = syntheticdata.attrs['min'], syntheticdata.attrs['max'] 
-        sample_cube = memoryview(syntheticdata[10:700, :, :])
+        sample_cube = memoryview(syntheticdata[25:297, 15:207, 45:653])
 
     labels = {}
     kwargs_labels = {}
 
     if 'fault' in list_keys and 'raw' in list_keys:
         faultdata = syntheticdata_group['fault']
-        sample_fault = faultdata[10:700, :, :]
+        sample_fault = faultdata[25:297, 15:207, 45:653]
         labels["fault"] = memoryview(sample_fault)
         kwargs_labels['fault'] = dict(alpha=0.5, cmap="gray")
 

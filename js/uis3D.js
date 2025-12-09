@@ -73,8 +73,6 @@ function create3DToolbarSelection(model, text, selections, eventListenerCallback
         });
     }
     // labelSelect
-    labelSelect.addEventListener("change", eventListenerCallback)
-
     return labelSelect
 };
 
@@ -95,7 +93,7 @@ function create3DStyledSlider(
         <div style="display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 4px 0;">
             <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
                 <div id="label-incre-${data.sliderId}" style="color: ${data.model.get("dark_mode") ? "white" : "black"}; font-size: 14px; min-width: 60px;">Increment</div>
-                <input type="number" id="incre-${data.sliderId}" name="Increment" min="${data.min}" max="${data.max}" value="${data.max >= 50? 25 : 1}" style="flex: 1; padding: 4px 0;">
+                <input type="number" id="incre-${data.sliderId}" name="Increment" min="${data.min}" max="${data.max}" value="${data.max >= 50? 10 : 1}" style="flex: 1; padding: 4px 0;">
             </div>
             <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
                 <div id="label-${data.sliderId}" style="color: ${data.model.get("dark_mode") ? "white" : "black"}; font-size: 14px; min-width: 60px;">${data.sliceType}</div>
@@ -122,18 +120,20 @@ function create3DStyledSlider(
         getValue: () => parseInt(slider.value),
         setValue: (newValue, newSliceType, dim, value) => {
 
-            data.sliceValueByIndex[value] = newValue;
+            // data.sliceValueByIndex[value] = newValue;
+
             label.textContent = `${newSliceType}`;
             valueSpan.textContent = newValue.toString();
 
             slider.value = newValue.toString();
             slider.max = (dim[newSliceType]-1).toString();
-            slider.addEventListener("input", (idx) => {
-                const sliderValue = parseInt(slider.value);
-                valueSpan.textContent = sliderValue;
-                data.sliceValueByIndex[idx] = sliderValue;
-                // Send message to Python
-            });
+
+            // slider.addEventListener("input", (idx) => {
+            //     const sliderValue = parseInt(slider.value);
+            //     valueSpan.textContent = sliderValue;
+            //     data.sliceValueByIndex[idx] = sliderValue;
+            //     // Send message to Python
+            // });
 
         }
     };

@@ -1,4 +1,6 @@
-# threey
+# [![threey](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_efPXZi3JmiXTdpHzHdxm2b)
+
+marimo App demo on [molab](https://molab.marimo.io/notebooks/nb_efPXZi3JmiXTdpHzHdxm2b/app)
 
 ## Installation
 
@@ -11,6 +13,11 @@ or with [uv](https://github.com/astral-sh/uv):
 ```sh
 uv add threey
 ```
+
+## Credits & Shout Out to
+
+1. [Vincent](https://github.com/koaning) through His works on [mothree](https://github.com/koaning/mothree/)
+2. [timothygebhard](https://github.com/timothygebhard/) through they work of [js-colormaps](https://github.com/timothygebhard/js-colormaps) for making the Matplotlib's colormap evaluator for JavaScript
 
 # Usage
 

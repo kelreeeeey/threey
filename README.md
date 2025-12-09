@@ -12,38 +12,47 @@ or with [uv](https://github.com/astral-sh/uv):
 uv add threey
 ```
 
-## Development
+# Usage
 
-We recommend using [uv](https://github.com/astral-sh/uv) for development.
-It will automatically manage virtual environments and dependencies for you.
+```python
+from threey import Seismic3DViewer
 
-```sh
-uvx marimo edit example.py
+# the data's axis are configured to be in this order
+# axis 0: vertical slice / z / xy-plane
+# axis 1 and 2: could be any of the vertical planes, xz-plane or yz-plane
+# z axis is perpendicular to earth surface, not the computer screen :D
+synthetic_data = np.load("path/to/3d_np_array.npy")
+synthetic_fault_data = np.load("path/to/3d_np_array_label.npy")
+
+vmin, vmax = synthetic_data.min(), synthetic_data.max()
+
+sample_cube = memoryview(synthetic_data)
+sample_label = memoryview(synthetic_fault_data)
+
+labels = {"fault":sample_label}
+kwargs_labels = {"fault":dict(cmap="inferno", alpha=0.5)} # store the colormap and alpha for the label here!
+
+_dimensions = dict(
+    inline=sample_cube.shape[1],
+    crossline=sample_cube.shape[2],
+    depth=sample_cube.shape[0]
+)
+
+area = mo.ui.anywidget(
+    Seismic3DViewer(
+        data_source = sample_cube, # this should be a memoryview of 3D np.ndarray
+        cmap_data = "seismic", # default to "seismic"
+        dark_mode=False if mo.app_meta().theme != "dark" else True,
+        labels=labels, # this should be a dict, e.g. {"label1": memoryview(label1_3d_npy)}
+        kwargs_labels=kwargs_labels, # this also should be a dict {"label1": dict(cmap='inferno', alpha=0.5)}
+        show_label= False,
+        vmin = vmin,
+        vmax = vmax,
+        is_2d_view = False, # default to True
+        dimensions=_dimensions,
+        height=500
+    )
+)
+area
+
 ```
-
-Alternatively, create and manage your own virtual environment:
-
-```sh
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-marimo edit --watch example.py
-```
-
-The widget front-end code bundles it's JavaScript dependencies. After setting up Python,
-make sure to install these dependencies locally:
-
-```sh
-npm install
-```
-
-While developing, you can run the following in a separate terminal to automatically
-rebuild JavaScript as you make changes:
-
-```sh
-npm run dev
-```
-
-Open `example.py` in JupyterLab, VS Code, or your favorite editor
-to start developing. Changes made in `js/` will be reflected
-in the notebook.

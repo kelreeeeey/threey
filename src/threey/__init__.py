@@ -4,8 +4,6 @@ import pathlib
 import anywidget
 import traitlets
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 import copy
 
 try:
@@ -20,123 +18,7 @@ except ModuleNotFoundError:
 
 import marimo as mo
 
-class ThreeWidget(anywidget.AnyWidget):
-    """An anywidget for rendering interactive 3D scatter plots with three.js.
-    Credits: https://github.com/koaning/mothree
-
-    Parameters
-    ----------
-    data : list of dict
-        Chart data as list of points: [{"x": float, "y": float, "z": float, "color": str, "size": float}, ...]
-        - x, y, z: 3D coordinates (required)
-        - color: Any CSS color string (e.g., "red", "#ff0000", "rgb(255,0,0)")
-        - size: Optional per-point size (default: 0.1)
-    width : int, default=600
-        Width of the chart in pixels
-    height : int, default=400
-        Height of the chart in pixels
-    show_grid : bool, default=False
-        Whether to show the grid helper
-    show_axes : bool, default=False
-        Whether to show the axes helper
-    dark_mode : bool, default=False
-        Whether to use dark mode (dark background with lighter grid/axes)
-
-    Notes
-    -----
-    - Uses lightweight point rendering for excellent performance (handles 100k+ points smoothly)
-    - Cell restart properly cleans up resources via cancelAnimationFrame and dispose()
-
-    Examples
-    --------
-    >>> # Create a 3D scatter plot
-    >>> data = [
-    ...     {"x": 1.0, "y": 2.0, "z": 3.0, "color": "red"},
-    ...     {"x": -1.0, "y": 1.0, "z": -2.0, "color": "#00ff00"},
-    ... ]
-    >>> widget = ThreeWidget(data=data)
-
-    >>> # Per-point sizes determined by data
-    >>> data_with_sizes = [
-    ...     {"x": 0, "y": 0, "z": 0, "color": "red", "size": 0.5},
-    ...     {"x": 1, "y": 1, "z": 1, "color": "blue", "size": 0.2},
-    ... ]
-    >>> widget = ThreeWidget(data=data_with_sizes)
-
-    >>> # With dark mode and no grid
-    >>> widget = ThreeWidget(data=data, dark_mode=True, show_grid=False, width=800, height=600)
-    """
-
-    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
-    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
-
-    # Data for the 3D chart
-    _kind = traitlets.Any("Scatter3DViewer").tag(sync=True)
-    data = traitlets.List([]).tag(sync=True)
-    width = traitlets.Int(600).tag(sync=True)
-    height = traitlets.Int(400).tag(sync=True)
-    show_grid = traitlets.Bool(False).tag(sync=True)
-    show_axes = traitlets.Bool(False).tag(sync=True)
-    dark_mode = traitlets.Bool(False).tag(sync=True)
-
-
-
-
-
-class RendreData:
-    __slots__ = (
-        "plane_span",
-        "width",
-        "height",
-        "index",
-        "is_2d_view",
-        "has_label",
-        "show_label",
-
-        "base",
-        "base_cmap",
-        "base_alpha",
-        "label",
-        "label_cmap",
-        "label_alpha",
-
-        "is_rgba",
-    )
-
-    def __init__(
-        self,
-        plane_span: str,
-        width: int,
-        height: int,
-        index: int = 0,
-        is_2d_view: bool = False,
-        has_label: bool = False,
-        show_label: bool = False,
-
-        base: list = [],
-        base_cmap: str = "seismic",
-        base_alpha: float = 1.0,
-
-        label: list = [],
-        label_cmap: str = "gray",
-        label_alpha: float = 0.5,
-
-    ) -> None:
-
-        self.plane_span = plane_span
-        self.width = width
-        self.height = height
-        self.index = index
-
-        self.is_2d_view = is_3d_view
-        self.has_label = has_label
-
-        self.base = base # base.texture
-        self.base_cmap = base_cmap
-        self.label = label # label.texture
-        self.label_cmap = label_cmap
-        self.show_label = show_label
-
+__all__ = [ "ThreeWidget", "Seismic3DViewer", ]
 
 class Seismic3DViewer(anywidget.AnyWidget):
 
@@ -185,9 +67,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
         self.on_msg(self._handle_custom_msg)
         self._kind = "Seismic3DViewer"
 
-        # need to validate user input of `kwargs_label`
-        # need to validate user input of `dimensions` tho
-
         # dimension "not plural", is the value of dimensions (dict[str, int])
         self.dimension = list(x for x in kwargs['dimensions'].values())
         self.label_list = list(kwargs['labels'].keys())
@@ -204,7 +83,6 @@ class Seismic3DViewer(anywidget.AnyWidget):
 
         self.current_slice = "inline"
         self.cmap_data = kwargs.get("cmap_data", "seismic")
-        self.cmap_seis = plt.get_cmap(self.cmap_data)
 
         self._data = [
             {
@@ -278,7 +156,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
         if len(self.label_list) != 0:
             self.current_label = self.label_list[0]
             self.kwargs_labels = kwargs["kwargs_labels"]
-            self.cmap_labels = {x:plt.get_cmap(y['cmap']) for x, y in self.kwargs_labels.items()}
+            self.cmap_labels = {x:y['cmap'] for x, y in self.kwargs_labels.items()}
             self.kwargs_label = self.kwargs_labels[self.current_label]
 
             self._data[0]['label'] =  {
@@ -525,33 +403,126 @@ class Seismic3DViewer(anywidget.AnyWidget):
             data_max = np.nanmax(data)
             return (data - data_min)/(data_max - data_min)
 
-    def convert_slice_to_texture(self, texture, axis: str, alpha: float, is_label: bool, is_rgba: bool=False) -> list[float]:
+    def convert_slice_to_texture(self, texture, axis: str, alpha: float, **kwargs) -> list[float]:
+        # old kwargs -> is_label: bool, is_rgba: bool=False
         _t = []
-        if not is_rgba:
-            if axis == "depth":
-                _t = texture.T.flatten().astype(np.float16).tolist()
-                return _t
-            else:
-                _t = texture.flatten().astype(np.float16).tolist()
-                return _t
-
+        if axis == "depth":
+            _t = texture.T.flatten().astype(np.float16).tolist()
+            return _t
         else:
-            if axis == "depth":
-                if not is_label:
-                    _t = (self.cmap_seis(texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
-                    return _t
-                else:
-                    _t = (self.cmap_labels[self.current_label](texture.T.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
-                    return _t
+            _t = texture.flatten().astype(np.float16).tolist()
+            return _t
 
-            else:
-                if not is_label:
-                    _t = (self.cmap_seis(texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
-                    return _t
-                else:
-                    _t = (self.cmap_labels[self.current_label](texture.flatten(), alpha=alpha) * 255).flatten().astype(np.uint)
-                    return _t
+class ThreeWidget(anywidget.AnyWidget):
+    """An anywidget for rendering interactive 3D scatter plots with three.js.
+    Credits: https://github.com/koaning/mothree
+
+    Parameters
+    ----------
+    data : list of dict
+        Chart data as list of points: [{"x": float, "y": float, "z": float, "color": str, "size": float}, ...]
+        - x, y, z: 3D coordinates (required)
+        - color: Any CSS color string (e.g., "red", "#ff0000", "rgb(255,0,0)")
+        - size: Optional per-point size (default: 0.1)
+    width : int, default=600
+        Width of the chart in pixels
+    height : int, default=400
+        Height of the chart in pixels
+    show_grid : bool, default=False
+        Whether to show the grid helper
+    show_axes : bool, default=False
+        Whether to show the axes helper
+    dark_mode : bool, default=False
+        Whether to use dark mode (dark background with lighter grid/axes)
+
+    Notes
+    -----
+    - Uses lightweight point rendering for excellent performance (handles 100k+ points smoothly)
+    - Cell restart properly cleans up resources via cancelAnimationFrame and dispose()
+
+    Examples
+    --------
+    >>> # Create a 3D scatter plot
+    >>> data = [
+    ...     {"x": 1.0, "y": 2.0, "z": 3.0, "color": "red"},
+    ...     {"x": -1.0, "y": 1.0, "z": -2.0, "color": "#00ff00"},
+    ... ]
+    >>> widget = ThreeWidget(data=data)
+
+    >>> # Per-point sizes determined by data
+    >>> data_with_sizes = [
+    ...     {"x": 0, "y": 0, "z": 0, "color": "red", "size": 0.5},
+    ...     {"x": 1, "y": 1, "z": 1, "color": "blue", "size": 0.2},
+    ... ]
+    >>> widget = ThreeWidget(data=data_with_sizes)
+
+    >>> # With dark mode and no grid
+    >>> widget = ThreeWidget(data=data, dark_mode=True, show_grid=False, width=800, height=600)
+    """
+
+    _esm = pathlib.Path(__file__).parent / "static" / "widget.js"
+    _css = pathlib.Path(__file__).parent / "static" / "widget.css"
+
+    # Data for the 3D chart
+    _kind = traitlets.Any("Scatter3DViewer").tag(sync=True)
+    data = traitlets.List([]).tag(sync=True)
+    width = traitlets.Int(600).tag(sync=True)
+    height = traitlets.Int(400).tag(sync=True)
+    show_grid = traitlets.Bool(False).tag(sync=True)
+    show_axes = traitlets.Bool(False).tag(sync=True)
+    dark_mode = traitlets.Bool(False).tag(sync=True)
 
 
-
-__all__ = [ "ThreeWidget", "Seismic3DViewer", ]
+# class RendreData:
+#     __slots__ = (
+#         "plane_span",
+#         "width",
+#         "height",
+#         "index",
+#         "is_2d_view",
+#         "has_label",
+#         "show_label",
+#
+#         "base",
+#         "base_cmap",
+#         "base_alpha",
+#         "label",
+#         "label_cmap",
+#         "label_alpha",
+#
+#         "is_rgba",
+#     )
+#
+#     def __init__(
+#         self,
+#         plane_span: str,
+#         width: int,
+#         height: int,
+#         index: int = 0,
+#         is_2d_view: bool = False,
+#         has_label: bool = False,
+#         show_label: bool = False,
+#
+#         base: list = [],
+#         base_cmap: str = "seismic",
+#         base_alpha: float = 1.0,
+#
+#         label: list = [],
+#         label_cmap: str = "gray",
+#         label_alpha: float = 0.5,
+#
+#     ) -> None:
+#
+#         self.plane_span = plane_span
+#         self.width = width
+#         self.height = height
+#         self.index = index
+#
+#         self.is_2d_view = is_3d_view
+#         self.has_label = has_label
+#
+#         self.base = base # base.texture
+#         self.base_cmap = base_cmap
+#         self.label = label # label.texture
+#         self.label_cmap = label_cmap
+#         self.show_label = show_label

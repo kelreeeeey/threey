@@ -1,6 +1,9 @@
-# [![threey](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_efPXZi3JmiXTdpHzHdxm2b)
+# threey [![threey](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_efPXZi3JmiXTdpHzHdxm2b)
 
 marimo App demo on [molab](https://molab.marimo.io/notebooks/nb_efPXZi3JmiXTdpHzHdxm2b/app)
+
+github pages: [kelreeeey/marimo-gh-pages](https://kelreeeeey.github.io/marimo-gh-pages/)
+
 
 ## Installation
 
@@ -18,6 +21,14 @@ uv add threey
 
 1. [Vincent](https://github.com/koaning) through His works on [mothree](https://github.com/koaning/mothree/)
 2. [timothygebhard](https://github.com/timothygebhard/) through they work of [js-colormaps](https://github.com/timothygebhard/js-colormaps) for making the Matplotlib's colormap evaluator for JavaScript
+
+## Features
+
+- [ ] view 3D seismic data
+- [ ] view any other 3D seismic attributes like fault cube, rgt, RMS, etc.
+- [ ] slicer through inline, crossline, and depth slice
+- [ ] also support 2D view, by passing flag `is_2d_view=True`
+- [ ] support matplotlib colormaps.
 
 # Usage
 

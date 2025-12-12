@@ -1,5 +1,8 @@
 # threey [![Open in molab](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_ctHpuj4ycr8WBrmPQqUyqY)
 
+A gift for [marimo](https://www.marimo.io) and its community. Seismic 3D viewer
+in a form of notebook widget.
+
 ![threey](./assets/marimo - threey.png)
 
 marimo App demo on [molab](https://molab.marimo.io/notebooks/nb_ctHpuj4ycr8WBrmPQqUyqY/app)

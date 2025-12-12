@@ -1,5 +1,7 @@
 # threey [![Open in molab](https://molab.marimo.io/molab-shield.svg)](https://molab.marimo.io/notebooks/nb_ctHpuj4ycr8WBrmPQqUyqY)
 
+![threey](./assets/marimo - threey.png)
+
 marimo App demo on [molab](https://molab.marimo.io/notebooks/nb_ctHpuj4ycr8WBrmPQqUyqY/app)
 
 github pages: [kelreeeey/marimo-gh-pages](https://kelreeeeey.github.io/marimo-gh-pages/)

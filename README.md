@@ -25,8 +25,8 @@ uv add threey
 
 ## Credits & Shout Out to
 
-1. [Vincent](https://github.com/koaning) through His works on [mothree](https://github.com/koaning/mothree/)
-2. [timothygebhard](https://github.com/timothygebhard/) through they work of [js-colormaps](https://github.com/timothygebhard/js-colormaps) for making the Matplotlib's colormap evaluator for JavaScript
+1. [Vincent](https://github.com/koaning) through his works on [mothree](https://github.com/koaning/mothree/)
+2. [timothygebhard](https://github.com/timothygebhard/) through their work of [js-colormaps](https://github.com/timothygebhard/js-colormaps) for making the Matplotlib's colormap evaluator for JavaScript
 
 ## Features
 

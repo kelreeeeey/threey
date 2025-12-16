@@ -31,10 +31,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
             "type" : "change_all_label_slice",
             "data" : [true]
         },
-        // change_label : {
-        //     "type" : "change_all_label_slice",
-        //     "data" : ["inline", "crossline", "depth", ]
-        // }
     }
 
 
@@ -216,7 +212,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
         updateCameraMode();
     });
 
-    let sliderSlice = create3DStyledSlider({
+    const sliderSlice = create3DStyledSlider({
         model : model,
         sliderId : "dynamic-slider",
         min : 0,
@@ -236,21 +232,29 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 currentLabel
             ]
         })
+        sliderSlice.setValueFromInput(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
         sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
     });
-
+    sliderSlice.valueSpan.addEventListener("change", (e) => {
+        const sliderValue = parseInt(parseInt(e.target.value));
+        sliceValueByIndex[currentSliceIndex] = sliderValue;
+        model.send({
+            type: customMes[sliceOptions[currentSliceIndex]].type,
+            data: [
+                sliceValueByIndex[currentSliceIndex],
+                showLabel,
+                currentLabel
+            ]
+        })
+        sliderSlice.setValueFromInput(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
+        sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
+    });
 
     // 3D Slice slider and navigator
     const viewCurrentSliceButton = create3DToolbarSelection(model, "Select Slice to Show", sliceOptions, () => {});
     viewCurrentSliceButton.addEventListener("change", (e) => {
         currentSlice = sliceOptions[parseInt(e.target.value)];
         currentSliceIndex = parseInt(e.target.value);
-
-        // sliceOptions.forEach((slice, idx) => {
-        //     if (slice === currentSlice) {
-        //         currentSliceIndex = idx;
-        //     }
-        // });
 
         model.send({
             type: customMes[sliceOptions[currentSliceIndex]].type,
@@ -261,6 +265,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
             ]
         });
 
+        sliderSlice.setValueFromInput(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
         sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], currentSlice, dims, currentSliceIndex);
         if (is2DView) {
             updateCamera2DProperties(currentSlice);
@@ -283,6 +288,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 ]
             });
         }
+        sliderSlice.setValueFromInput(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
         sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
     });
     const buttonPrevSlice = create3DToolbarButton(model, `◀`, () => {
@@ -298,6 +304,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 ]
             });
         }
+        sliderSlice.setValueFromInput(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
         sliderSlice.setValue(sliceValueByIndex[currentSliceIndex], sliceOptions[currentSliceIndex], dims, currentSliceIndex);
 
     });
@@ -336,7 +343,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
         });
     })
 
-    // navigator.appendChild(viewModeButton);
 
     // Scene setup
     const scene = new THREE.Scene();
@@ -398,7 +404,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     const darkModeButton = create3DToolbarButton(model, !isDarkMode ? "Togle Light Mode" : "Togle Dark Mode", () => {
         isDarkMode = !isDarkMode;
         darkModeButton.textContent = !isDarkMode ? "Togle Light Mode" : "Togle Dark Mode";
-        // const msg = {type: "is-dark-mode", data: isDarkMode};
         model.set("dark_mode", isDarkMode);
         model.save_changes();
         updateBackground();
@@ -412,12 +417,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
 
     // update initial renderData
     spanThroughSelections.forEach((plane) => { renderData[plane].updatePos(startIndexes[plane]); });
-    // renderData["depth"].updateRenderData(model.get("depth_slice"), "base");
-    // renderData["inline"].updateRenderData(model.get("inline_slice"), "base");
-    // renderData["crossline"].updateRenderData(model.get("crossline_slice"), "base");
-    // if (renderData["depth"].hasLabel) {renderData["depth"].updateRenderData(model.get("depth_slice_labels"), "label");}
-    // if (renderData["inline"].hasLabel) {renderData["inline"].updateRenderData(model.get("inline_slice_labels"), "label");}
-    // if (renderData["crossline"].hasLabel) {renderData["crossline"].updateRenderData(model.get("crossline_slice_labels"), "label");}
 
     let dataToRender = [ ];
     const updateStateChange = () => {
@@ -471,7 +470,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
             if (spanThroughSelections.includes(plane.span_through)) {
                 renderData[plane.span_through]["is2DView"] = is2DView
                 if (!plane.is_label) {
-                    // renderData[plane.span_through].updateRenderData(plane, "base");
                     scene.add(renderData[plane.span_through]["base"].mesh);
                     rendered.push({
                         slice: plane.span_through, label: false,
@@ -479,7 +477,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                     })
                 } else {
                     if (plane.show_label && renderData[plane.span_through].hasLabel) {
-                        // renderData[plane.span_through].updateRenderData(plane, "label");
                         scene.add(renderData[plane.span_through]["label"].mesh);
                         rendered.push({
                             slice: plane.span_through, label: true,
@@ -532,10 +529,6 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     toolbar.appendChild(navigator);
     toolbar.appendChild(generalControllersDiv);
 
-    // // Make sure the canvas also scales properly
-    // renderer.domElement.style.width = "100%";
-    // renderer.domElement.style.height = "auto"; // or set a specific aspect ratio
-    // renderer.domElement.style.display = "block";
     container.appendChild(renderer.domElement);
 
     container_main.appendChild(toolbar);

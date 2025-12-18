@@ -98,10 +98,11 @@ function create3DStyledSlider(
             <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
                 <div id="label-${data.sliderId}" style="color: ${data.model.get("dark_mode") ? "white" : "black"}; font-size: 14px; min-width: 60px;">${data.sliceType}</div>
                 <input type="range" id="${data.sliderId}" min="${data.min}" max="${data.max}" value="${data.sliceValueByIndex[data.index]}" style="flex: 1; padding: 4px 0;">
-                <div id="label_${data.sliderId}" style="color: ${data.model.get("dark_mode") ? "white" : "black"}; font-size: 14px; min-width: 30px; text-align: center;">${data.sliceValueByIndex[data.index]}</div>
+                <input type="number" id="label_${data.sliderId}" min="${data.min}" max="${data.max}" value="${data.sliceValueByIndex[data.index]}" style="flex: 1; padding: 4px 0;">
             </div>
         </div>
     `;
+                // <div id="label_${data.sliderId}" style="color: ${data.model.get("dark_mode") ? "white" : "black"}; font-size: 14px; min-width: 30px; text-align: center;">${data.sliceValueByIndex[data.index]}</div>
 
     const slider = container.querySelector(`#${data.sliderId}`);
     const valueSpan = container.querySelector(`#label_${data.sliderId}`);
@@ -109,31 +110,34 @@ function create3DStyledSlider(
 
     const valueIncrement = container.querySelector(`#incre-${data.sliderId}`);
 
-    // Initialize value
-    valueSpan.textContent = slider.value;
+    valueSpan.value = slider.value;
 
     return {
         container: container,
         slider: slider,
         valueSpan: valueSpan,
+
         getValueIncre: () => parseInt(valueIncrement.value),
         getValue: () => parseInt(slider.value),
-        setValue: (newValue, newSliceType, dim, value) => {
+        getValueFromInput: () => parseInt(valueSpan.value),
 
-            // data.sliceValueByIndex[value] = newValue;
+        setValueFromInput: (newValue, newSliceType, dim, value) => {
 
             label.textContent = `${newSliceType}`;
-            valueSpan.textContent = newValue.toString();
+            valueSpan.value = newValue;
 
             slider.value = newValue.toString();
             slider.max = (dim[newSliceType]-1).toString();
 
-            // slider.addEventListener("input", (idx) => {
-            //     const sliderValue = parseInt(slider.value);
-            //     valueSpan.textContent = sliderValue;
-            //     data.sliceValueByIndex[idx] = sliderValue;
-            //     // Send message to Python
-            // });
+        },
+
+        setValue: (newValue, newSliceType, dim, value) => {
+
+            label.textContent = `${newSliceType}`;
+            valueSpan.value = newValue;
+
+            slider.value = newValue.toString();
+            slider.max = (dim[newSliceType]-1).toString();
 
         }
     };

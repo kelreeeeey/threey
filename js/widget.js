@@ -2,12 +2,19 @@ import "./widget.css";
 import { render_seismic_3d_viewer } from "./widget_seismic_3d_viewer.js"
 import { render_scatter_3d_viewer } from "./widget_scatter_3d_viewer.js"
 import { initSeismicSlicesRenderData } from "./seismicSliceRenderData"
-
+import { createLocalDimensionData } from "./seismicLocalDimensionsData"
 
 function render({model, el}) {
 
-    const DOWNFACTOR = 500;
     const _kind = model.get("_kind");
+    const dims = model.get("dimensions");
+
+    const localDimension = createLocalDimensionData({
+        inline: dims.inline,
+        crossline: dims.crossline,
+        depth: dims.depth,
+        downFactor: 500,
+    });
 
     if ("Seismic3DViewer" == _kind) {
         const is2dView = model.get("is_2d_view");
@@ -16,13 +23,13 @@ function render({model, el}) {
 
         const renderData  = initSeismicSlicesRenderData(
             {
-                downFactor : DOWNFACTOR,
+                downFactor : localDimension.downFactor,
                 dims : dims,
                 labelOptions : labelOptions,
                 is2dView : is2dView,
             }
         );
-        render_seismic_3d_viewer({ model, el, renderData });
+        render_seismic_3d_viewer({ model, el, renderData, localDimension });
     }
 
     if ("Scatter3DViewer" == _kind){

@@ -11,9 +11,8 @@ import {
 // import customMes from "./custom3dMess.json" assert { type: "json" };
 import { createRenderData, updateRenderData } from "./seismicSliceRenderData"
 
-function render_seismic_3d_viewer({ model, el, renderData }) {
+function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
 
-    const DOWNFACTOR = 500;
     const customMes = {
         inline : {
             "type": "inline,show_label,current_label",
@@ -95,38 +94,39 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     }
 
 
+    // figure out the bound positions if its 2D view were used.
     let leftc, rightc, topc, bottomc
     const updateCamera2DProperties = (sliceName) => {
         if ( sliceName == "inline" ) {
-            leftc   = (-dims.crossline)/DOWNFACTOR;
-            rightc  = (+dims.crossline)/DOWNFACTOR;
-            topc    = (+dims.depth)/DOWNFACTOR;
-            bottomc = (-dims.depth)/DOWNFACTOR;
+            leftc   = localDimension.crossline_start;
+            rightc  = localDimension.crossline_stop;
+            topc    = localDimension.depth_start;
+            bottomc = localDimension.depth_stop;
         } else if ( sliceName == "crossline" ) {
-            leftc   = (-dims.inline)/DOWNFACTOR;
-            rightc  = (+dims.inline)/DOWNFACTOR;
-            topc    = (+dims.depth)/DOWNFACTOR;
-            bottomc = (-dims.depth)/DOWNFACTOR;
+            leftc   = localDimension.inline_start;
+            rightc  = localDimension.inline_stop;
+            topc    = localDimension.depth_start;
+            bottomc = localDimension.depth_stop;
         } else if ( sliceName == "depth" ) {
-            topc    = (+dims.inline)/DOWNFACTOR;
-            bottomc = (-dims.inline)/DOWNFACTOR;
-            leftc   = (-dims.crossline)/DOWNFACTOR;
-            rightc  = (+dims.crossline)/DOWNFACTOR;
+            topc    = localDimension.inline_stop;
+            bottomc = localDimension.inline_start;
+            leftc   = localDimension.crossline_start;
+            rightc  = localDimension.crossline_stop;
         }
     }
 
-    const camera2DLookAtInline    = new THREE.Vector3(0, 0, +(dims.inline/ DOWNFACTOR));
-    const camera2DLookAtCrossline = new THREE.Vector3(-(dims.crossline / DOWNFACTOR), 0, 0);
-    const camera2DLookAtDepth     = new THREE.Vector3(0, +(dims.depth  / DOWNFACTOR), 0);
+    const camera2DLookAtInline    = new THREE.Vector3(0, 0, localDimension.inline_stop);
+    const camera2DLookAtCrossline = new THREE.Vector3(localDimension.crossline_stop, 0, 0);
+    const camera2DLookAtDepth     = new THREE.Vector3(0, localDimension.depth_start, 0);
     const updateCamera2DPosition = (camera) => {
         if ( currentSlice == "inline" ) {
-            camera.position.set(0, 0, (dims.crossline)/2);
+            camera.position.set(0, 0, (localDimension.crossline)/2);
             camera.lookAt(camera2DLookAtInline);
         } else if ( currentSlice == "crossline" ) {
-            camera.position.set(-(dims.crossline)/2, 0, 0);
+            camera.position.set(-(localDimension.crossline)/2, 0, 0);
             camera.lookAt(camera2DLookAtCrossline);
         } else if ( currentSlice == "depth" ) {
-            camera.position.set(0, (dims.depth)/2, 0);
+            camera.position.set(0, (localDimension.depth)/2, 0);
             camera.lookAt(camera2DLookAtDepth);
         }
     }
@@ -136,8 +136,8 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     const camera2d = new THREE.OrthographicCamera(leftc, rightc, topc, bottomc, 0, 1000 );
     const camera3d = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     const updateCamera3DPos = () => {
-        if (dims) {
-            camera3d.position.set((dims.inline+10)/DOWNFACTOR, (dims.crossline+10)/DOWNFACTOR, (dims.depth+10)/DOWNFACTOR);
+        if (localDimension) {
+            camera3d.position.set((localDimension.inline+10)/localDimension.downFactor, (localDimension.crossline+10)/localDimension.downFactor, (localDimension.depth+10)/localDimension.downFactor);
         } else {
             camera3d.position.set(5, 5, 5);
         }
@@ -252,7 +252,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
 
     // 3D Slice slider and navigator
     const viewCurrentSliceButton = create3DToolbarSelection(model, "Select Slice to Show", sliceOptions, () => {});
-    viewCurrentSliceButton.addEventListener("change", (e) => {
+    viewCurrentSliceButton.label.addEventListener("change", (e) => {
         currentSlice = sliceOptions[parseInt(e.target.value)];
         currentSliceIndex = parseInt(e.target.value);
 
@@ -326,7 +326,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
         });
     });
     const labelSelect = create3DToolbarSelection(model, "Label", labelOptions, () => {})
-    labelSelect.addEventListener("change", (e) => {
+    labelSelect.label.addEventListener("change", (e) => {
         currentLabel = labelOptions[parseInt(e.target.value)];
         labelOptions.forEach((slice, idx) => {
             if (slice === currentLabel) {
@@ -372,7 +372,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
 
     // 3D Box Frame toggle button
     function createFrameBox() {
-        const boxG=new THREE.BoxGeometry((dims.crossline)/(DOWNFACTOR), (dims.depth)/(DOWNFACTOR), (dims.inline)/(DOWNFACTOR),);
+        const boxG=new THREE.BoxGeometry((dims.crossline)/(localDimension.downFactor), (dims.depth)/(localDimension.downFactor), (dims.inline)/(localDimension.downFactor),);
         const boxE=new THREE.EdgesGeometry(boxG);
         const boxM=new THREE.LineBasicMaterial({color:darkMode ? 0x666666 : 0x888888});
         const boxW=new THREE.LineSegments(boxE,boxM);
@@ -421,7 +421,9 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     let dataToRender = [ ];
     const updateStateChange = () => {
 
-        let idx = 0;
+        // field access pattern using `idx`
+        // push -> advance idx -> field access by idx using bracket notation
+        let idx = -1;
         model.get("_data").forEach((plane) => {
             dataToRender.push({
                 span_through: plane.span_through,
@@ -431,6 +433,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                 alpha: plane.alpha,
                 cmap: plane.cmap,
             });
+            idx += 1;
             if (dataToRender[idx].index != renderData[dataToRender[idx].span_through].index) {
                 renderData[dataToRender[idx].span_through].index = dataToRender[idx].index
             }
@@ -446,10 +449,9 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
                     alpha: plane.alpha,
                     cmap: plane.cmap,
                 });
-                renderData[dataToRender[idx+1].span_through].updateRenderData(plane.label, "label");
                 idx += 1;
+                renderData[dataToRender[idx].span_through].updateRenderData(plane.label, "label");
             }
-            idx += 1;
 
 
         })
@@ -512,7 +514,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
     }
 
     // Create the proper hierarchy
-    sliceSelectorDiv.appendChild(viewCurrentSliceButton);
+    sliceSelectorDiv.appendChild(viewCurrentSliceButton.label);
 
     navigator.appendChild(sliderSlice.container);
     navigator.appendChild(buttonPrevSlice);
@@ -520,7 +522,7 @@ function render_seismic_3d_viewer({ model, el, renderData }) {
 
     generalControllersDiv.appendChild(boxFrameButton);
     labelDiv.appendChild(labelShow);
-    labelDiv.appendChild(labelSelect);
+    labelDiv.appendChild(labelSelect.label);
     if (labelOptions.length > 0) { generalControllersDiv.appendChild(labelDiv); }
     generalControllersDiv.appendChild(resetButton);
     generalControllersDiv.appendChild(darkModeButton);

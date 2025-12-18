@@ -13,12 +13,9 @@ function createRenderData( initialData = {
     is2DView: false,
 }) {
 
-    if (initialData.width && initialData.width <= 0) {
-        throw new Error('initialData.width should not be 0');
-    }
-    if (initialData.height && initialData.height <= 0) {
-        throw new Error('initialData.height should not be 0');
-    }
+    if (!Number.isFinite(initialData.width) || initialData.width <= 0) { throw new Error('initialData.width should not be 0'); }
+    if (!Number.isFinite(initialData.height) || initialData.height <= 0) { throw new Error('initialData.height should not be 0'); }
+    if (!Number.isFinite(initialData.downFactor) || initialData.downFactor <= 0) { throw new Error('initialData.downFactor should not be 0'); }
 
     const renderData = Object.create(null, {
 

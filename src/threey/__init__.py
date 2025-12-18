@@ -18,7 +18,13 @@ except ModuleNotFoundError:
 
 import marimo as mo
 
-__all__ = [ "ThreeWidget", "Seismic3DViewer", ]
+from .custom_types import (
+    FaultTypes,
+    get_threey_fault_types,
+)
+
+__all__ = [ "ThreeWidget", "Seismic3DViewer", "FaultTypes", "get_threey_fault_types",]
+
 
 class Seismic3DViewer(anywidget.AnyWidget):
 
@@ -213,7 +219,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
             self.crossline_slice_labels    = None
             self.depth_slice_labels = None
 
-        self.data = copy.deepcopy(self._data)
+        # self.data = copy.deepcopy(self._data)
 
         return None
  
@@ -232,7 +238,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
 
                 texture = self.labels[self.current_label][self.current_depth_idx]
-                self.data[0]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                # self.data[0]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
                 self._data[0]['label'].update({
                     "texture" : self.convert_slice_to_texture(
                         texture = texture,
@@ -246,7 +252,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 })
 
                 texture = self.labels[self.current_label][:, self.current_inline_idx, :]
-                self.data[1]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                # self.data[1]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
                 self._data[1]['label'].update({
                     "texture" : self.convert_slice_to_texture(
                         texture = texture,
@@ -260,7 +266,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 })
 
                 texture = self.labels[self.current_label][:, :, self.current_crossline_idx]
-                self.data[2]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
+                # self.data[2]['label'].update({"texture":texture, "alpha":alpha, "cmap": cmap})
                 self._data[2]['label'].update({
                     "texture" : self.convert_slice_to_texture(
                         texture = texture,
@@ -276,20 +282,20 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 self._data[0].update({"show_label": new_show_label})
                 self._data[1].update({"show_label": new_show_label})
                 self._data[2].update({"show_label": new_show_label})
-                self.data[0].update({"show_label": new_show_label})
-                self.data[1].update({"show_label": new_show_label})
-                self.data[2].update({"show_label": new_show_label})
+                # self.data[0].update({"show_label": new_show_label})
+                # self.data[1].update({"show_label": new_show_label})
+                # self.data[2].update({"show_label": new_show_label})
                 self.send_state("_data")
 
             case "depth,show_label,current_label":
 
                 self.current_depth_idx = current_slice_index
 
-                self.data[0].update({ "index": current_slice_index })
+                # self.data[0].update({ "index": current_slice_index })
                 self._data[0].update({ "index": current_slice_index })
 
                 texture = self.data_source[self.current_depth_idx]
-                self.data[0].update({ "textute": texture })
+                # self.data[0].update({ "textute": texture })
                 self._data[0]['base'].update({
                     "texture" : self.convert_slice_to_texture(
                         texture = texture,
@@ -303,7 +309,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     texture = self.labels[self.current_label][self.current_depth_idx]
                     alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
                     cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
-                    self.data[0]['label'].update({"texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    # self.data[0]['label'].update({"texture" : texture, "alpha": alpha, "cmap": cmap, })
                     self._data[0]['label'].update({
                         "texture" : self.convert_slice_to_texture(
                             texture = texture,
@@ -320,7 +326,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
             case "inline,show_label,current_label":
                 self.current_inline_idx = current_slice_index
 
-                self.data[1].update({ "index": current_slice_index })
+                # self.data[1].update({ "index": current_slice_index })
                 self._data[1].update({ "index": current_slice_index })
 
                 texture = self.data_source[:, self.current_inline_idx, :]
@@ -339,7 +345,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     texture = self.labels[self.current_label][:, self.current_inline_idx, :]
                     alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
                     cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
-                    self.data[1]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    # self.data[1]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
                     self._data[1]['label'].update({
                         "texture" : self.convert_slice_to_texture(
                             texture = texture,
@@ -356,10 +362,10 @@ class Seismic3DViewer(anywidget.AnyWidget):
                 self.current_crossline_idx = current_slice_index
 
                 self._data[2].update({ "index": current_slice_index })
-                self.data[2].update({ "index": current_slice_index })
+                # self.data[2].update({ "index": current_slice_index })
 
                 texture = self.data_source[:, :, self.current_crossline_idx]
-                self.data[2]['base'].update({"texture":texture})
+                # self.data[2]['base'].update({"texture":texture})
                 self._data[2]['base'].update({
                     "texture": self.convert_slice_to_texture(
                         texture = texture,
@@ -373,7 +379,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
                     texture = self.labels[self.current_label][:, :, self.current_crossline_idx]
                     alpha   = self.kwargs_labels[self.current_label].get('alpha', 0.5)
                     cmap    = self.kwargs_labels[self.current_label].get('cmap', "gray")
-                    self.data[2]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
+                    # self.data[2]['label'].update({ "texture" : texture, "alpha": alpha, "cmap": cmap, })
                     self._data[2]['label'].update({
                         "texture" : self.convert_slice_to_texture(
                             texture = texture,

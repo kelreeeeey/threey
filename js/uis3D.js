@@ -63,17 +63,27 @@ function create3DToolbarSelection(model, text, selections, eventListenerCallback
     labelSelect.style.color = model.get("dark_mode") ? "white" : "black";
     labelSelect.style.alignItems = "center";
     labelSelect.innerHTML = ``;
-    if (selections) {
-        let clab = 0;
-        selections.forEach((lab) => {
-            labelSelect.innerHTML += `
-                <label style="display: inline-block; margin-right: 12px; cursor: pointer;">
-                    <input type="radio" name="toolbarSelection" value="${clab}" style="margin-right: 4px;"> ${lab} </label> `;
-            clab += 1;
-        });
+
+    const makeSelection = (options) => {
+        if (options) {
+            let clab = 0;
+            options.forEach((lab) => {
+                labelSelect.innerHTML += `
+                    <label style="display: inline-block; margin-right: 12px; cursor: pointer;">
+                        <input type="radio" name="toolbarSelection" value="${clab}" style="margin-right: 4px;"> ${lab} </label> `;
+                clab += 1;
+            });
+        }
     }
+    makeSelection(selections);
+
     // labelSelect
-    return labelSelect
+    return {
+        label: labelSelect,
+        updateSelection: (newOptions) => {
+            makeSelection(newOptions);
+        }
+    }
 };
 
 

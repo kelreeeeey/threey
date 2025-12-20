@@ -26,7 +26,7 @@ function createRenderData( initialData = {
         height: { value: initialData.height || 0, writable: false, enumerable: false },
         downFactor : { value: initialData.downFactor || 1, writable: false, enumerable: false },
 
-        // writeable properties
+        // writable properties
         index: { value: initialData.index || 0, writable: true, enumerable: false },
         is2DView: { value: initialData.is2DView || false, writable: true, enumerable: false },
 
@@ -50,12 +50,12 @@ function createRenderData( initialData = {
                 mesh : { value: null, writable: true, enumerable: false },
 
             }),
-            writeable: true,
+            writable: true,
             enumerable: false,
         },
 
-        hasLabel: { value: initialData.hasLabel, writeable: true, enumerable: true },
-        pos: { value: {x:0, y:0, z:0}, writeable: true, enumerable: true },
+        hasLabel: { value: initialData.hasLabel, writable: true, enumerable: true },
+        pos: { value: {x:0, y:0, z:0}, writable: true, enumerable: true },
 
         label : {
             value: initialData.hasLabel
@@ -79,7 +79,7 @@ function createRenderData( initialData = {
 
                 })
                 : null,
-            writeable: true,
+            writable: true,
             enumerable: false,
         },
 

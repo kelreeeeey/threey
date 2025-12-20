@@ -21,10 +21,28 @@ import marimo as mo
 from .custom_types import (
     FaultTypes,
     get_threey_fault_types,
+    FAULT_POINTS,
+    FAULT_LINES,
+    FAULT_SURFACE,
+    FAULT_POINTS_AND_LINE,
+    FAULT_POINTS_AND_SURFACE,
+    FAULT_LINES_AND_SURFACE,
+    FAULT_ALL,
 )
 
-__all__ = [ "ThreeWidget", "Seismic3DViewer", "FaultTypes", "get_threey_fault_types",]
-
+__all__ = [
+    "ThreeWidget",
+    "Seismic3DViewer",
+    "FaultTypes",
+    "get_threey_fault_types",
+    "FAULT_POINTS",
+    "FAULT_LINES",
+    "FAULT_SURFACE",
+    "FAULT_POINTS_AND_LINE",
+    "FAULT_POINTS_AND_SURFACE",
+    "FAULT_LINES_AND_SURFACE",
+    "FAULT_ALL",
+]
 
 class Seismic3DViewer(anywidget.AnyWidget):
 

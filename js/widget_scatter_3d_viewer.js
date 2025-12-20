@@ -73,42 +73,42 @@ function render_scatter_3d_viewer({ model, el }) {
     }
 
     function updateChart() {
-    clearChart();
+        clearChart();
 
-    const data = model.get("data");
-    const positions = [];
-    const colors = [];
-    const sizes = [];
+        const data = model.get("data");
+        const positions = [];
+        const colors = [];
+        const sizes = [];
 
-    data.forEach((point) => {
-        positions.push(point.x || 0, point.y || 0, point.z || 0);
+        data.forEach((point) => {
+            positions.push(point.x || 0, point.y || 0, point.z || 0);
 
-        const color = new THREE.Color(point.color || "#00ff00");
-        colors.push(color.r, color.g, color.b);
+            const color = new THREE.Color(point.color || "#00ff00");
+            colors.push(color.r, color.g, color.b);
 
-        // Use per-point size if available, otherwise default to 0.1
-        sizes.push(point.size !== undefined ? point.size : 0.1);
-    });
+            // Use per-point size if available, otherwise default to 0.1
+            sizes.push(point.size !== undefined ? point.size : 0.1);
+        });
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
 
-    const material = new THREE.PointsMaterial({
-        vertexColors: true,
-        sizeAttenuation: true
-    });
+        const material = new THREE.PointsMaterial({
+            vertexColors: true,
+            sizeAttenuation: true
+        });
 
-    // Custom shader to support per-vertex sizes
-    material.onBeforeCompile = (shader) => {
-        shader.vertexShader = shader.vertexShader.replace(
-            'uniform float size;',
-            'attribute float size;'
-        );
-    };
+        // Custom shader to support per-vertex sizes
+        material.onBeforeCompile = (shader) => {
+            shader.vertexShader = shader.vertexShader.replace(
+                'uniform float size;',
+                'attribute float size;'
+            );
+        };
 
-    const points = new THREE.Points(geometry, material);
+        const points = new THREE.Points(geometry, material);
         scene.add(points);
         chartObjects.push(points);
     }

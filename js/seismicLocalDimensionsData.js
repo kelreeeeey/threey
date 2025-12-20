@@ -11,6 +11,18 @@ class Local_Dimension
         this.crossline = crossline;
         this.depth = depth;
 
+        this.start = Object.create(null, {
+            inline:    { value: +this.inline/2, writable: false, enumerable: false },
+            crossline: { value: -this.crossline/2, writable: false, enumerable: false },
+            depth:     { value: +this.depth/2, writable: false, enumerable: false },
+        });
+
+        this.stop = Object.create(null, {
+            inline:    { value: -this.inline/2, writable: false, enumerable: false },
+            crossline: { value: +this.crossline/2, writable: false, enumerable: false },
+            depth:     { value: -this.depth/2, writable: false, enumerable: false },
+        });
+
         this.downfactor = downfactor;
 
         this.inline_start = -(inline/downfactor);
@@ -89,12 +101,37 @@ function createLocalDimensionData( data = {
         crossline:       { value: data.crossline, writeable: false, enumerable: false },
         depth:           { value: data.depth, writeable: false, enumerable: false },
         downFactor:      { value: data.downFactor, writeable: false, enumerable: false },
+
+        // bounds by downfactor
         inline_start:    { value: -((data.inline/data.downFactor)), writeable: false, enumerable: false },
         inline_stop:     { value: +((data.inline/data.downFactor)), writeable: false, enumerable: false },
         crossline_start: { value: -((data.crossline/data.downFactor)), writeable: false, enumerable: false },
         crossline_stop:  { value: +((data.crossline/data.downFactor)), writeable: false, enumerable: false },
         depth_start:     { value: +((data.depth/data.downFactor)), writeable: false, enumerable: false },
         depth_stop:      { value: -((data.depth/data.downFactor)), writeable: false, enumerable: false },
+
+        // start stop index, does not scaled by the downfactor
+        // so we can still use raw index sent from python, the actual
+        // array indexing e.g., for 3D array -> array[10, :, :]
+        start:           {
+            value: Object.create(null, {
+                inline:    { value: +data.inline/2, writable: false, enumerable: false },
+                crossline: { value: -data.crossline/2, writable: false, enumerable: false },
+                depth:     { value: +data.depth/2, writable: false, enumerable: false },
+            }),
+            writable: false,
+            enumrable: false
+        },
+        stop:           {
+            value: Object.create(null, {
+                inline:    { value: -data.inline/2, writable: false, enumerable: false },
+                crossline: { value: +data.crossline/2, writable: false, enumerable: false },
+                depth:     { value: -data.depth/2, writable: false, enumerable: false },
+            }),
+            writable: false,
+            enumrable: false
+
+        },
 
     });
 

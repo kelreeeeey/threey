@@ -1,18 +1,33 @@
 import * as THREE from "three";
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { containerMain3d, create3DToolbarButton, create3DToolbarSelection, create3DStyledSlider, } from "./uis3D.js";
+import { ColorCycler, ColorCyclerFaults, csv_parser } from "./utils.js"
 import {
-    containerMain3d,
-    create3DToolbarButton,
-    create3DToolbarSelection,
-    create3DStyledSlider,
-} from "./uis3D.js";
+    create_fault_line_render_data,
+    FaultTypes,
+    SAMPLE_DATA_LINES,
+    SAMPLE_DATA_SURFACE,
+} from "./seismicFaultRenderData.js"
 
 // import customMes from "./custom3dMess.json" assert { type: "json" };
 import { createRenderData, updateRenderData } from "./seismicSliceRenderData"
 
 function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
 
+    const test_fault_render_data = create_fault_line_render_data(
+        {
+            local_dimension: localDimension,
+            type:            1,
+            name_suffix:     "test",
+            points_options:  { name: "p", color: null, alpha: 1.00, size: 1/localDimension.downFactor, },
+            lines_options:   { name: "l", color: null, alpha: 0.75, size: 1/localDimension.downFactor, },
+        },
+        SAMPLE_DATA_SURFACE,
+    )
+    // SAMPLE_DATA_LINES,
+
+    // const d = csvParser(data)
     const customMes = {
         inline : {
             "type": "inline,show_label,current_label",
@@ -409,14 +424,12 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
         updateBackground();
     });
 
-    const startx = +(dims.inline    / (2));
-    const startz = -(dims.crossline / (2));
-    const starty = +(dims.depth     / (2));
     const spanThroughSelections = [ "depth", "inline", "crossline" ];
-    const startIndexes = { inline: startx, crossline: startz, depth: starty, };
 
     // update initial renderData
-    spanThroughSelections.forEach((plane) => { renderData[plane].updatePos(startIndexes[plane]); });
+    spanThroughSelections.forEach((plane) => {
+        renderData[plane].updatePos(localDimension.start[plane]);
+    });
 
     let dataToRender = [ ];
     const updateStateChange = () => {
@@ -437,7 +450,7 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
             if (dataToRender[idx].index != renderData[dataToRender[idx].span_through].index) {
                 renderData[dataToRender[idx].span_through].index = dataToRender[idx].index
             }
-            renderData[dataToRender[idx].span_through].updatePos(startIndexes[dataToRender[idx].span_through]);
+            renderData[dataToRender[idx].span_through].updatePos(localDimension.start[dataToRender[idx].span_through]);
             renderData[dataToRender[idx].span_through].updateRenderData(plane.base, "base");
 
             if (plane.has_label) {
@@ -492,19 +505,49 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
 
         });
 
+        test_fault_render_data.points.forEach((point) => {
+            scene.add(point.mesh);
+            rendered.push({
+                slice: "inline", label: true, dont_erase: true,
+                render: point.mesh
+            });
+        });
+
+        test_fault_render_data.lines.forEach((line) => {
+            scene.add(line.mesh);
+            rendered.push({
+                slice: "crossline", label: true, dont_erase: true,
+                render: line.mesh
+            });
+        });
+
         rendered.forEach((obj) => { chartObjects.push(obj); });
         dataToRender = [];
 
     }
 
     const clearChart = () => {
+        let _a = [];
         chartObjects.forEach((obj) => {
-            scene.remove(obj.render);
-            if (obj.render.geometry) obj.render.geometry.dispose();
-            if (obj.render.material) obj.render.material.dispose();
-            obj = {}
+
+                scene.remove(obj.render);
+                if (obj.render.geometry) obj.render.geometry.dispose();
+                if (obj.render.material) obj.render.material.dispose();
+                obj = {}
+
+            // if ( obj.dont_erase != undefine ) {
+            //     if ( obj.dont_erase ) {
+            //         _a.push(obj)
+            //     }
+            // } else {
+            //     scene.remove(obj.render);
+            //     if (obj.render.geometry) obj.render.geometry.dispose();
+            //     if (obj.render.material) obj.render.material.dispose();
+            //     obj = {}
+            // }
         });
         chartObjects = [];
+        // chartObjects = chartObjects.concat(_a);
     }
 
     function updateChart() {

@@ -13,13 +13,13 @@ function render({model, el}) {
         inline: dims.inline,
         crossline: dims.crossline,
         depth: dims.depth,
-        downFactor: 500,
+        downFactor: 2,
     });
+
 
     if ("Seismic3DViewer" == _kind) {
         const is2dView = model.get("is_2d_view");
         const labelOptions = model.get('label_list');
-        const dims = model.get("dimensions");
 
         const renderData  = initSeismicSlicesRenderData(
             {

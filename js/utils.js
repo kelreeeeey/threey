@@ -119,7 +119,7 @@ function csv_parser(data, options = { has_header: true, newline: "\r\n" })
     const rows = []
     lines.forEach(line => {
         if ( line.length != 0 ) {
-            const row = line.split(',').map(x => parseInt(x, 10))
+            const row = line.split(',').map(x => parseFloat(x, 10))
             rows.push(row);
         }
     });

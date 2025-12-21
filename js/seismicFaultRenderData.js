@@ -1,5 +1,6 @@
 import * as THREE from "three";
 
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { NURBSCurve } from 'three/addons/curves/NURBSCurve.js';
 import { NURBSSurface } from 'three/addons/curves/NURBSSurface.js';
 import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
@@ -29,6 +30,9 @@ function _create_fault_points_render_data( data = {
         size:              { value: data.options.size,  writable: true, enumerable: false },
         color:             { value: data.options.color, writable: true, enumerable: false },
         alpha:             { value: data.options.alpha, writable: true, enumerable: false },
+        vec3_point:        { value: null,               writable: true, enumerable: false },
+        vec3_color:        { value: null,               writable: true, enumerable: false },
+        vec1_size :        { value: null,               writable: true, enumerable: false },
         // mesh needs geometry and meshBasicMaterial to be instantiated later
         mesh:              { value: null, writable: true, enumerble: false },
         geometry:          { value: new THREE.BufferGeometry(), writable: true, enumerable: false },
@@ -42,13 +46,48 @@ function _create_fault_points_render_data( data = {
             }),
             writable: true, enumerable: false
         },
+
+        updateRenderDataGeometry: {
+            value: function(){
+                const vec3_point = new THREE.Float32BufferAttribute(this.vec3_point, 3)
+                const vec3_color = new THREE.Float32BufferAttribute(this.vec3_color, 3)
+                const vec1_size  = new THREE.Float32BufferAttribute(this.vec1_size , 1)
+                this.geometry.setAttribute('position', vec3_point);
+                this.geometry.setAttribute('color',    vec3_color);
+                this.geometry.setAttribute('size',     vec1_size );
+            },
+            writable: false, enumerable: false
+        },
+
+        updateRenderDataMesh: {
+            value: function(){
+                // this.mesh.geometry = this.geometry;
+                this.mesh.material = this.meshBasicMaterial;
+                this.mesh.position.set(0, 0, 0);
+                this.mesh.onBeforeCompile = (shader) => {
+                    shader.vertexShader = shader.vertexShader.replace(
+                        'uniform float size;',
+                        'attribute float size;'
+                    );
+                };
+            },
+            writable: false, enumerable: false
+        },
+
+        updateRenderData: {
+            value: function() {
+                this.updateRenderDataGeometry();
+                this.updateRenderDataMesh();
+            },
+            writable: false, enumerable: false
+        },
     });
     return points;
 }
 
 function _create_fault_lines_render_data( data = {
     parent_id:       "",
-    options:         { name:  "",   color: 0x000000, alpha: 0.75, },
+    options:         { name:  "",   color: 0x000000, alpha: 0.75, size: 2.0, },
 })
 {
     const lines = Object.create(null, {
@@ -59,6 +98,7 @@ function _create_fault_lines_render_data( data = {
         show_label:        { value: true,                 writable: true, enumerable: false  },
         color:             { value: data.options.color,   writable: true, enumerable: false },
         alpha:             { value: data.options.alpha,   writable: true, enumerable: false },
+        line_points:       { value: null,                 writable: true, enumerable: false },
         nurbs_curve:       { value: null,                 writable: true, enumerable: false },
         // mesh needs geometry and meshBasicMaterial to be instantiated later
         mesh:              { value: null,                 writable: true, enumerable: false },
@@ -67,12 +107,38 @@ function _create_fault_lines_render_data( data = {
         // and passing the NURBSCurve's instance, `.getPoints( 200 )`
         geometry:          { value: new THREE.BufferGeometry(), writable: true, enumerable: false },
         meshBasicMaterial: {
+            // value: new LineMaterial({
             value: new THREE.LineBasicMaterial({
                 color:       data.options.color,
                 opacity:     data.options.alpha,
-                transparent: true
+                linewidth:   data.options.size,
+                transparent: false,
             }),
                 writable: true, enumerable: false
+        },
+
+        updateRenderDataGeometry: {
+            value: function(){
+                this.geometry.setFromPoints( this.line_points );
+            },
+            writable: false, enumerable: false
+        },
+
+        updateRenderDataMesh: {
+            value: function(){
+                // this.mesh.geometry = this.geometry;
+                this.mesh.material = this.meshBasicMaterial;
+                this.mesh.position.set(0, 0, 0);
+            },
+            writable: false, enumerable: false
+        },
+
+        updateRenderData: {
+            value: function() {
+                this.updateRenderDataGeometry();
+                this.updateRenderDataMesh();
+            },
+            writable: false, enumerable: false
         },
 
     });
@@ -129,13 +195,16 @@ function _createFaultRenderData( data = {
         name_suffix:       { value: data.name_suffix,         writable: false, enumerable: false },
         local_dimensions:  { value: data.local_dimensions,    writable: false, enumerable: false },
         type:              { value: data.type,                writable: true, enumerable: false },
+        // points, lines, and surface should be array
+        // NOTE: dev should check if those arrays have items before
+        //       updating anything.
         // we always create points since it the most primitive
         // object to construct a fault.
-        points:            { value: null, writable: true, enumerable: false, },
+        points:            { value: [], writable: true, enumerable: false, },
         // only create lines if data.type IS NOT POINTS
-        lines:             { value: null, writable: true, enumerable: false, },
+        lines:             { value: [], writable: true, enumerable: false, },
         // only create surface if data.type IS NOT POINTS or IS NOT LINES
-        surface:           { value: null, writable: true, enumerable: false, },
+        surface:           { value: [], writable: true, enumerable: false, },
 
 
     });
@@ -194,15 +263,11 @@ function create_fault_line_render_data(
         const _x = ( start['crossline'] + point[ header_of_index['crossline'] ] ) / down_factor;
         const _y = ( start['depth']     - point[ header_of_index['depth']     ] ) / down_factor;
         const _z = ( start['inline']    - point[ header_of_index['inline']    ] ) / down_factor;
-        // const _x = ( local_dimension.startx + point[ header_of_index['crossline'] ] ) / down_factor;
-        // const _y = ( local_dimension.starty - point[ header_of_index['depth']     ] ) / down_factor;
-        // const _z = ( local_dimension.startz - point[ header_of_index['inline']    ] ) / down_factor;
 
         const _id = point[ header_of_index["_id"] ];
         // this conditional branch assumed that USER INPUT of `_id`, should START
         // FORM 0. so here we update all of the container if `_id` changes.
         if ( _count_id != _id+1 ) {
-
             raw_vector3_points .push([]);
             raw_vector3_colors .push([]);
             raw_vector3_sizes  .push([]);
@@ -211,12 +276,10 @@ function create_fault_line_render_data(
             pool_ids.push(_id);
             // update count_id
             _count_id += 1;
-
             // update color
             point_color = ( render_data.lines_options.color == undefined ) ? ColorCyclerFaults.next() : point_color;
 
         }
-
 
         const color = new THREE.Color(point_color);
         raw_vector3_colors[_id].push(color.r, color.g, color.b);
@@ -224,18 +287,9 @@ function create_fault_line_render_data(
         raw_vector3_sizes [_id].push(point_size);
 
         const knot = THREE.MathUtils.clamp( ( i + 1 ) / ( j - nurbs_degree ), 0, 1);
-
-        // push the first item
         nurbs_lines_points[_id].push( new THREE.Vector4(_x, _y, _z, 1) );
         for ( let ii = 0; ii <= nurbs_degree; ii ++ ) { nurbs_lines_knots[_id].push( 0 ); }
         nurbs_lines_knots[_id].push( knot );
-
-        // raw_vector3_colors[_id].push(color.r, color.g, color.b);
-        // raw_vector3_points[_id].push(_x, _y, _z);
-        // raw_vector3_sizes [_id].push(point_size);
-
-        // const _points_render_data = _create_fault_points_render_data({ local_dimension: render_data.local_dimension, options: render_data.points_options, });
-        // const _lines_render_data  = _create_fault_lines_render_data({ local_dimension: render_data.local_dimension, options: render_data.lines_options });
 
     })
 
@@ -248,18 +302,13 @@ function create_fault_line_render_data(
         surface_options: {},
     })
 
-    out_render_data.points = [];
-    out_render_data.lines  = [];
-
-    for (let o=0; o <= _count_id-1; o += 1){
+    for (let o=0; o <= _count_id-1; o += 1) {
 
         const current_id         = pool_ids.shift();
-
         // points data
         const current_vec3_point = raw_vector3_points.shift();
         const current_vec3_color = raw_vector3_colors.shift();
         const current_vec3_size  = raw_vector3_sizes .shift();
-
         // line data
         const current_line_point = nurbs_lines_points.shift();
         const current_line_knot  = nurbs_lines_knots .shift();
@@ -268,34 +317,39 @@ function create_fault_line_render_data(
             parent_id: null,
             options:   { name: `line-${current_id}`, color: current_vec3_color, alpha: line_alpha, },
         }));
-
         out_render_data.lines[o].nurbs_curve = new NURBSCurve( nurbs_degree, current_line_knot, current_line_point );
+        out_render_data.lines[o].line_points = current_line_point;
+        // out_render_data.lines[o].updateRenderDataGeometry();
         out_render_data.lines[o].geometry.setFromPoints( current_line_point );
         out_render_data.lines[o].mesh = new THREE.Line ( out_render_data.lines[o].geometry, out_render_data.lines[o].meshBasicMaterial, );
+        // out_render_data.lines[o].updateRenderDataMesh();
+        out_render_data.lines[o].mesh.position.set(0, 0, 0);
 
         out_render_data.points.push(_create_fault_points_render_data({
             parent_id: out_render_data.lines[o].parent_id,
             options:   { name: `point-${current_id}`, color: current_vec3_color, alpha: point_alpha, size: point_size },
         }));
-        out_render_data.points[o].geometry.setAttribute('position', new THREE.Float32BufferAttribute(current_vec3_point, 3));
-        out_render_data.points[o].geometry.setAttribute('color', new THREE.Float32BufferAttribute(current_vec3_color, 3));
-        out_render_data.points[o].geometry.setAttribute('size', new THREE.Float32BufferAttribute(current_vec3_size, 1));
+        out_render_data.points[o].vec3_point = current_vec3_point;
+        out_render_data.points[o].vec3_color = current_vec3_color;
+        out_render_data.points[o].vec1_size  = current_vec3_size ;
+        out_render_data.points[o].updateRenderDataGeometry();
+        // out_render_data.points[o].geometry.setAttribute('position', out_render_data.points[o].vec3_point);
+        // out_render_data.points[o].geometry.setAttribute('color',    out_render_data.points[o].vec3_color);
+        // out_render_data.points[o].geometry.setAttribute('size',     out_render_data.points[o].vec1_size );
         out_render_data.points[o].mesh = new THREE.Points(
             out_render_data.points[o].geometry,
             out_render_data.points[o].meshBasicMaterial
         );
-        out_render_data.points[o].mesh.onBeforeCompile = (shader) => {
-            shader.vertexShader = shader.vertexShader.replace(
-                'uniform float size;',
-                'attribute float size;'
-            );
-        };
+        out_render_data.points[o].updateRenderDataMesh();
+        // out_render_data.points[o].mesh.position.set(0, 0, 0);
+        // out_render_data.points[o].mesh.onBeforeCompile = (shader) => {
+        //     shader.vertexShader = shader.vertexShader.replace(
+        //         'uniform float size;',
+        //         'attribute float size;'
+        //     );
+        // };
     }
 
-    // free the data
-    raw_data.headers = null;
-    raw_data.rows   = null;
-    raw_data        = null;
     return out_render_data
 
 }
@@ -313,14 +367,6 @@ function separate_lines_from_surface(
 )
 {
 
-        // const _points_render_data = _create_fault_points_render_data({ local_dimension: render_data.local_dimension, options: render_data.points_options, });
-        // const _lines_render_data  = _create_fault_lines_render_data({ local_dimension: render_data.local_dimension, options: render_data.lines_options });
-        // const _surface_render_data = _create_fault_surface_render_data({ local_dimension: render_data.local_dimension, options: render_data.surface_options });
-
-    // free the data
-    raw_data.headers = null;
-    raw_data.rows   = null;
-    raw_data        = null;
     return 
 
 }

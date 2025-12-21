@@ -21,11 +21,10 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
             type:            1,
             name_suffix:     "test",
             points_options:  { name: "p", color: null, alpha: 1.00, size: 1/localDimension.downFactor, },
-            lines_options:   { name: "l", color: null, alpha: 0.75, size: 1/localDimension.downFactor, },
+            lines_options:   { name: "l", color: null, alpha: 0.75, size: 10, },
         },
-        SAMPLE_DATA_SURFACE,
+        SAMPLE_DATA_LINES,
     )
-    // SAMPLE_DATA_LINES,
 
     // const d = csvParser(data)
     const customMes = {
@@ -506,6 +505,7 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
         });
 
         test_fault_render_data.points.forEach((point) => {
+            point.updateRenderData();
             scene.add(point.mesh);
             rendered.push({
                 slice: "inline", label: true, dont_erase: true,
@@ -514,6 +514,7 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
         });
 
         test_fault_render_data.lines.forEach((line) => {
+            line.updateRenderData();
             scene.add(line.mesh);
             rendered.push({
                 slice: "crossline", label: true, dont_erase: true,

@@ -227,12 +227,6 @@ function create_fault_line_render_data(
 {
     let   point_color;
     let   color_cycle;
-    if ( render_data.lines_options.color == undefined ) {
-        color_cycle = ColorCyclerFaults;
-        point_color = ColorCyclerFaults.next();
-    } else {
-        point_color = render_data.lines_options.color;
-    }
 
     const pool_ids           = [];   // will be populated by the line ids
     // Each item would be a line, where each line consits of multiple points.
@@ -254,6 +248,15 @@ function create_fault_line_render_data(
     const header_of_index = raw_data.headers.length == 0
         ? { "inline": 0, "crossline":1, "depth":2 , "_id":3, "color": 4, "alpha": 5, "size": 6 }   // NOTE: DEFAULT BASE ASSUMPTION!
         : Object.fromEntries(raw_data.headers.map((item, index) => [item, index]));
+
+    if ( render_data.lines_options.color == undefined ) {
+        color_cycle = ColorCyclerFaults;
+        point_color = ColorCyclerFaults.next();
+    // } else if ( header_of_index.hasOwnProperty("color") ) {
+    //     point_color = render_data.lines_options.color;
+    } else {
+        point_color = render_data.lines_options.color;
+    }
 
     console.log("header_of_index: ", header_of_index);
     console.log("raw_data.headers: ", raw_data.headers);
@@ -281,10 +284,11 @@ function create_fault_line_render_data(
             _count_id += 1;
             // update color
             point_color = ( render_data.lines_options.color == undefined ) ? ColorCyclerFaults.next() : point_color;
-
         }
 
-        const color = new THREE.Color(point_color);
+        const _color_from_row = header_of_index.hasOwnProperty("color") ? point[ header_of_index["color"] ] : point_color;
+        console.log("_color_from_row: ", _color_from_row);
+        const color = new THREE.Color(_color_from_row);
         raw_vector3_colors[_id].push(color.r, color.g, color.b);
         raw_vector3_points[_id].push(_x, _y, _z);
         raw_vector3_sizes [_id].push(point_size);
@@ -336,21 +340,11 @@ function create_fault_line_render_data(
         out_render_data.points[o].vec3_color = current_vec3_color;
         out_render_data.points[o].vec1_size  = current_vec3_size ;
         out_render_data.points[o].updateRenderDataGeometry();
-        // out_render_data.points[o].geometry.setAttribute('position', out_render_data.points[o].vec3_point);
-        // out_render_data.points[o].geometry.setAttribute('color',    out_render_data.points[o].vec3_color);
-        // out_render_data.points[o].geometry.setAttribute('size',     out_render_data.points[o].vec1_size );
         out_render_data.points[o].mesh = new THREE.Points(
             out_render_data.points[o].geometry,
             out_render_data.points[o].meshBasicMaterial
         );
         out_render_data.points[o].updateRenderDataMesh();
-        // out_render_data.points[o].mesh.position.set(0, 0, 0);
-        // out_render_data.points[o].mesh.onBeforeCompile = (shader) => {
-        //     shader.vertexShader = shader.vertexShader.replace(
-        //         'uniform float size;',
-        //         'attribute float size;'
-        //     );
-        // };
     }
 
     return out_render_data

@@ -117,9 +117,19 @@ function csv_parser(data, options = { has_header: true, newline: "\r\n" })
         headers = first.split(',');
     }
     const rows = []
+    let   row  = NaN;
     lines.forEach(line => {
         if ( line.length != 0 ) {
-            const row = line.split(',').map(x => parseFloat(x, 10))
+            // const row = [];
+            // line.split(',').forEach((x))
+            const row = line.split(',').map(x => {
+                const _row = parseFloat(x, 10);
+                if (!Number.isNaN(_row)) {
+                    return _row;
+                } else {
+                    return x;
+                }
+            });
             rows.push(row);
         }
     });

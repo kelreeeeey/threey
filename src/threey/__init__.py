@@ -72,12 +72,35 @@ class Seismic3DViewer(anywidget.AnyWidget):
     lines_files    = traitlets.List().tag(sync=True)
     surfaces_files = traitlets.List().tag(sync=True)
 
+    _points_files   = traitlets.List().tag(sync=True)
+    _lines_files    = traitlets.List().tag(sync=True)
+    _surfaces_files = traitlets.List().tag(sync=True)
+
     width = traitlets.Int().tag(sync=True)
     height = traitlets.Int().tag(sync=True)
     show_grid = traitlets.Bool(True).tag(sync=True)
     show_axes = traitlets.Bool(True).tag(sync=True)
     show_frame = traitlets.Bool(True).tag(sync=True)
     dark_mode = traitlets.Bool(False).tag(sync=True)
+
+    def _read_lines_files(self, *args, **kwargs):
+        for _f in self.lines_files:
+            with open(_f, "r") as _ff:
+                _file = _ff.read()
+                self._lines_files.append(_file)
+        self.send_state("_lines_files")
+
+    def _read_points_files(self, *args, **kwargs):
+        for _f in self.points_files:
+            with open(_f, "r") as _ff:
+                _file = _ff.read()
+                self._points_files.append(_file)
+
+    def _read_surfaces_files(self, *args, **kwargs):
+        for _f in self.surfaces_files:
+            with open(_f, "r") as _ff:
+                _file = _ff.read()
+                self._surfaces_files.append(_file)
 
     def __init__(self, *args, **kwargs):
         if "width" not in kwargs:
@@ -104,15 +127,19 @@ class Seismic3DViewer(anywidget.AnyWidget):
         self.current_depth_idx  = 0
 
         self.points_files   = kwargs.get("points_files", [])
+        self._points_files   = []
+        self._read_points_files()
+        self.observe(self._read_points_files, "points_files")
 
-        # TODO: Abstract this
-        self.lines_files    = []
-        for _f in kwargs.get("lines_files", []):
-            with open(_f, "r") as _ff:
-                _file = _ff.read()
-                self.lines_files.append(_file)
+        self.lines_files    = kwargs.get("lines_files", [])
+        self._lines_files   = []
+        self._read_lines_files()
+        self.observe(self._read_lines_files, "lines_files")
 
         self.surfaces_files = kwargs.get("surfaces_files", [])
+        self._surfaces_files   = []
+        self._read_surfaces_files()
+        self.observe(self._read_surfaces_files, "surfaces_files")
 
         self.current_slice = "inline"
         self.cmap_data = kwargs.get("cmap_data", "seismic")
@@ -390,6 +417,7 @@ class Seismic3DViewer(anywidget.AnyWidget):
 
                 self._data[2].update({ "index": current_slice_index })
                 # self.data[2].update({ "index": current_slice_index })
+
 
                 texture = self.data_source[:, :, self.current_crossline_idx]
                 # self.data[2]['base'].update({"texture":texture})

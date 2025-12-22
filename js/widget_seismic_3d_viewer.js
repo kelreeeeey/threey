@@ -15,6 +15,17 @@ import { createRenderData, updateRenderData } from "./seismicSliceRenderData"
 
 function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
 
+    const points_files   = model.get("points_files");
+    const lines_files    = model.get("lines_files");
+    const surfaces_files = model.get("surfaces_files");
+
+    let fromPyLine;
+    if (lines_files[0].length == undefined) {
+
+    }
+
+    fromPyLine = csv_parser(lines_files[0], { has_header: true, newline: "\n" });
+
     const test_fault_render_data = create_fault_line_render_data(
         {
             local_dimension: localDimension,
@@ -23,7 +34,7 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
             points_options:  { name: "p", color: null, alpha: 1.00, size: 1/localDimension.downFactor, },
             lines_options:   { name: "l", color: null, alpha: 0.75, size: 10, },
         },
-        SAMPLE_DATA_LINES,
+        fromPyLine,
     )
 
     // const d = csvParser(data)

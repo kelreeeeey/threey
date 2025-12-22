@@ -252,8 +252,11 @@ function create_fault_line_render_data(
     const point_size      = ( render_data.points_options.size == undefined ) ? 0.50 : render_data.points_options.size ;
 
     const header_of_index = raw_data.headers.length == 0
-        ? { "inline": 0, "crossline":1, "depth":2 , "_id":3 }   // NOTE: DEFAULT BASE ASSUMPTION!
+        ? { "inline": 0, "crossline":1, "depth":2 , "_id":3, "color": 4, "alpha": 5, "size": 6 }   // NOTE: DEFAULT BASE ASSUMPTION!
         : Object.fromEntries(raw_data.headers.map((item, index) => [item, index]));
+
+    console.log("header_of_index: ", header_of_index);
+    console.log("raw_data.headers: ", raw_data.headers);
 
     const j = raw_data.rows.length;
 

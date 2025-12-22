@@ -24,10 +24,6 @@ from .custom_types import (
     FAULT_POINTS,
     FAULT_LINES,
     FAULT_SURFACE,
-    FAULT_POINTS_AND_LINE,
-    FAULT_POINTS_AND_SURFACE,
-    FAULT_LINES_AND_SURFACE,
-    FAULT_ALL,
 )
 
 __all__ = [
@@ -38,11 +34,9 @@ __all__ = [
     "FAULT_POINTS",
     "FAULT_LINES",
     "FAULT_SURFACE",
-    "FAULT_POINTS_AND_LINE",
-    "FAULT_POINTS_AND_SURFACE",
-    "FAULT_LINES_AND_SURFACE",
-    "FAULT_ALL",
 ]
+
+# class 
 
 class Seismic3DViewer(anywidget.AnyWidget):
 
@@ -74,6 +68,10 @@ class Seismic3DViewer(anywidget.AnyWidget):
     dimensions = traitlets.Dict().tag(sync=True)
     dimension = traitlets.List().tag(sync=True)
 
+    points_files   = traitlets.List().tag(sync=True)
+    lines_files    = traitlets.List().tag(sync=True)
+    surfaces_files = traitlets.List().tag(sync=True)
+
     width = traitlets.Int().tag(sync=True)
     height = traitlets.Int().tag(sync=True)
     show_grid = traitlets.Bool(True).tag(sync=True)
@@ -104,6 +102,17 @@ class Seismic3DViewer(anywidget.AnyWidget):
         self.current_inline_idx = 0
         self.current_crossline_idx = 0
         self.current_depth_idx  = 0
+
+        self.points_files   = kwargs.get("points_files", [])
+
+        # TODO: Abstract this
+        self.lines_files    = []
+        for _f in kwargs.get("lines_files", []):
+            with open(_f, "r") as _ff:
+                _file = _ff.read()
+                self.lines_files.append(_file)
+
+        self.surfaces_files = kwargs.get("surfaces_files", [])
 
         self.current_slice = "inline"
         self.cmap_data = kwargs.get("cmap_data", "seismic")

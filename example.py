@@ -117,6 +117,8 @@ def _(Seismic3DViewer, mo, synthetic_data, synthetic_fault_data):
             labels=labels,
             kwargs_labels=kwargs_labels,
             show_label= False,
+            # lines_files=[r"C:\Users\LediaPed\Documents\dev_modules\threey\assets\sample_abstract_fault_sample_lines.csv"],
+            lines_files=[r"C:\Users\LediaPed\Documents\results-ugproj\synthetic_data_csv_fault_sticks.csv"],
             vmin = vmin,
             vmax = vmax,
             is_2d_view = False, # default to True
@@ -138,11 +140,6 @@ def _():
 @app.cell(column=1)
 def _(area):
     area
-    return
-
-
-@app.cell
-def _():
     return
 
 

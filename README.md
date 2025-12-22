@@ -3,7 +3,7 @@
 A gift for [marimo](https://www.marimo.io) and its community. Seismic 3D viewer
 in a form of notebook widget.
 
-<img width="1033" height="995" alt="marimo - threey" src="https://github.com/user-attachments/assets/4134d967-9356-45f3-95e7-9046fe3103e0" />
+<img height="500" alt="marimo - threey" src="assets/marimo - threey - 2.png" />
 
 
 marimo App demo on [molab](https://molab.marimo.io/notebooks/nb_ctHpuj4ycr8WBrmPQqUyqY/app)

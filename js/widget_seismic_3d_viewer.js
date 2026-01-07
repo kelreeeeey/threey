@@ -3,7 +3,8 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { containerMain3d, create3DToolbarButton, create3DToolbarSelection, create3DStyledSlider, } from "./uis3D.js";
 import { ColorCycler, ColorCyclerFaults, csv_parser } from "./utils.js"
-import { create_fault_line_render_data, FaultTypes, SAMPLE_DATA_LINES, SAMPLE_DATA_SURFACE, } from "./seismicFaultRenderData.js"
+import { FaultTypes, SAMPLE_DATA_LINES, SAMPLE_DATA_SURFACE, } from "./seismicFaultRenderData.js"
+import { create_fault_line_render_data, create_fault_point_render_data, } from "./seismicFaultRenderData.js"
 
 // import customMes from "./custom3dMess.json" assert { type: "json" };
 import { createRenderData, updateRenderData } from "./seismicSliceRenderData"
@@ -23,18 +24,14 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
     does_surfaces_files_exist = ( model.get("surfaces_files").length ) != 0 ? true : false;
 
     surfaces_files            = model.get("_surfaces_files");
-    points_files              = model.get("_points_files");
 
-    console.log("does_lines_files_exist: ", does_lines_files_exist);
-
-    let test_fault_render_data = [];
+    let fault_line_render_data = [];
     const update_fault_lines_render_data = () => {
         lines_files               = model.get("_lines_files");
-        console.log("lines_files: ", lines_files);
         if (does_lines_files_exist) {
             lines_files.forEach((file) => {
                 const fromPyLine = csv_parser(file, { has_header: true, newline: "\n" });
-                test_fault_render_data.push( create_fault_line_render_data(
+                fault_line_render_data.push( create_fault_line_render_data(
                     {
                         local_dimension: localDimension,
                         type:            1,
@@ -47,8 +44,28 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
             });
         }
     }
-
     update_fault_lines_render_data();
+
+    let fault_point_render_data = [];
+    const update_fault_points_render_data = () => {
+        points_files              = model.get("_points_files");
+        if (does_points_files_exist) {
+            points_files.forEach((file) => {
+                const fromPyLine = csv_parser(file, { has_header: true, newline: "\n" });
+                fault_point_render_data.push( create_fault_point_render_data(
+                    {
+                        local_dimension: localDimension,
+                        type:            0,
+                        name_suffix:     "test",
+                        points_options:  { name: "p", color: null, alpha: 1.00, size: null, },
+                    },
+                    fromPyLine,
+                ));
+            });
+        }
+    }
+    update_fault_points_render_data();
+
 
     // const d = csvParser(data)
     const customMes = {
@@ -529,8 +546,7 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
         });
 
         if (does_lines_files_exist) {
-            test_fault_render_data.forEach((render_data) => {
-
+            fault_line_render_data.forEach((render_data) => {
                 render_data.points.forEach((point) => {
                     point.updateRenderData();
                     scene.add(point.mesh);
@@ -539,7 +555,6 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
                         render: point.mesh
                     });
                 });
-
                 render_data.lines.forEach((line) => {
                     line.updateRenderData();
                     scene.add(line.mesh);
@@ -551,6 +566,19 @@ function render_seismic_3d_viewer({ model, el, renderData, localDimension }) {
 
             })
 
+        }
+
+        if (does_points_files_exist) {
+            fault_point_render_data.forEach((render_data) => {
+                render_data.points.forEach((point) => {
+                    point.updateRenderData();
+                    scene.add(point.mesh);
+                    rendered.push({
+                        slice: "inline", label: true, dont_erase: true,
+                        render: point.mesh
+                    });
+                });
+            })
         }
 
         rendered.forEach((obj) => { chartObjects.push(obj); });

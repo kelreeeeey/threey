@@ -9,15 +9,16 @@ function render({model, el}) {
     const _kind = model.get("_kind");
     const dims = model.get("dimensions");
 
-    const localDimension = createLocalDimensionData({
-        inline: dims.inline,
-        crossline: dims.crossline,
-        depth: dims.depth,
-        downFactor: 2,
-    });
-
-
     if ("Seismic3DViewer" == _kind) {
+
+        const localDimension = createLocalDimensionData({
+            inline: dims.inline,
+            crossline: dims.crossline,
+            depth: dims.depth,
+            downFactor: 2,
+        });
+
+
         const is2dView = model.get("is_2d_view");
         const labelOptions = model.get('label_list');
 

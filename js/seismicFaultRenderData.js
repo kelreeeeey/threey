@@ -214,6 +214,111 @@ function _createFaultRenderData( data = {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+function create_fault_point_render_data(
+    render_data = {
+        local_dimension: {},
+        type:            FaultTypes.POINTS,
+        name_suffix:     "",
+        points_options:  { name: "", color: 0x000000, alpha: 1.00, size: 0.5, },
+    },
+    raw_data = { headers: [], rows: [] }
+)
+{
+    let   point_color;
+    let   color_cycle;
+
+    const pool_ids           = [];   // will be populated by the point ids
+    // Each item would be a line, where each line consits of multiple points.
+    const raw_vector3_points = [[]]; // NOTE: they have to be 2 dimensional array!
+    const raw_vector3_colors = [[]]; // NOTE: they have to be 2 dimensional array!
+    const raw_vector3_sizes  = [[]]; // NOTE: they have to be 2 dimensional array!
+
+    const local_dimension = render_data.local_dimension;
+    const down_factor     = local_dimension.downFactor;
+    const start           = local_dimension.start;
+    const point_alpha     = ( render_data.points_options.alpha == undefined ) ? 1.00 : render_data.points_options.alpha;
+    const point_size      = ( render_data.points_options.size == undefined ) ? 0.50 : render_data.points_options.size ;
+
+    const header_of_index = raw_data.headers.length == 0
+        ? { "inline": 0, "crossline":1, "depth":2 , "_id":3, "color": 4, "alpha": 5, "size": 6 }   // NOTE: DEFAULT BASE ASSUMPTION!
+        : Object.fromEntries(raw_data.headers.map((item, index) => [item, index]));
+
+    if ( render_data.points_options.color == undefined ) {
+        color_cycle = ColorCyclerFaults;
+        point_color = ColorCyclerFaults.next();
+    } else {
+        point_color = render_data.points_options.color;
+    }
+
+    const j = raw_data.rows.length;
+
+    let _count_id = 0;
+    let _temp_id  = -1
+    raw_data.rows.forEach((point, i) => {
+        // see seismicSliceRenderData.js at `createRenderData -> renderData.updatePos`
+        const _x = ( start['crossline'] + point[ header_of_index['crossline'] ] ) / down_factor;
+        const _y = ( start['depth']     - point[ header_of_index['depth']     ] ) / down_factor;
+        const _z = ( start['inline']    - point[ header_of_index['inline']    ] ) / down_factor;
+
+        const _id = point[ header_of_index["_id"] ];
+        // this conditional branch assumed that USER INPUT of `_id`, should START
+        // FORM 0. so here we update all of the container if `_id` changes.
+        if ( _temp_id != _id ) {
+            raw_vector3_points .push([]);
+            raw_vector3_colors .push([]);
+            raw_vector3_sizes  .push([]);
+            pool_ids.push(_id);
+            // update count_id
+            _count_id += 1;
+            _temp_id   = _id;
+            // update color
+            point_color = ( render_data.points_options.color == undefined ) ? ColorCyclerFaults.next() : point_color;
+        }
+
+        const _color_from_row = header_of_index.hasOwnProperty("color") ? point[ header_of_index["color"] ] : point_color;
+        const color = new THREE.Color(_color_from_row);
+        raw_vector3_colors[_count_id].push(color.r, color.g, color.b);
+        raw_vector3_points[_count_id].push(_x, _y, _z);
+        raw_vector3_sizes [_count_id].push(point_size);
+
+    })
+
+    const out_render_data = _createFaultRenderData({
+        local_dimension: local_dimension,
+        type:            FaultTypes.POINTS,
+        name_suffix:     "p-",
+        points_options:  render_data.points_options,
+        lines_options:   {},
+        surface_options: {},
+    })
+
+    for (let o=0; o <= _count_id-1; o += 1) {
+
+        const current_id         = pool_ids.shift();
+        // points data
+        const current_vec3_point = raw_vector3_points.shift();
+        const current_vec3_color = raw_vector3_colors.shift();
+        const current_vec3_size  = raw_vector3_sizes .shift();
+
+        out_render_data.points.push(_create_fault_points_render_data({
+            parent_id: null,
+            options:   { name: `point-${current_id}`, color: current_vec3_color, alpha: point_alpha, size: point_size },
+        }));
+        out_render_data.points[o].vec3_point = current_vec3_point;
+        out_render_data.points[o].vec3_color = current_vec3_color;
+        out_render_data.points[o].vec1_size  = current_vec3_size ;
+        out_render_data.points[o].updateRenderDataGeometry();
+        out_render_data.points[o].mesh = new THREE.Points(
+            out_render_data.points[o].geometry,
+            out_render_data.points[o].meshBasicMaterial
+        );
+        out_render_data.points[o].updateRenderDataMesh();
+    }
+
+    return out_render_data
+
+}
+
 function create_fault_line_render_data(
     render_data = {
         local_dimension: {},
@@ -238,7 +343,6 @@ function create_fault_line_render_data(
     const nurbs_degree       = 1;
 
     const local_dimension = render_data.local_dimension;
-    console.log("local_dimension: ", local_dimension);
     const down_factor     = local_dimension.downFactor;
     const start           = local_dimension.start;
     const line_alpha      = ( render_data.lines_options .alpha == undefined ) ? 0.75 : render_data.lines_options.alpha;
@@ -258,12 +362,10 @@ function create_fault_line_render_data(
         point_color = render_data.lines_options.color;
     }
 
-    console.log("header_of_index: ", header_of_index);
-    console.log("raw_data.headers: ", raw_data.headers);
-
     const j = raw_data.rows.length;
 
-    let _count_id = 1;
+    let _count_id = 0;
+    let _temp_id  = -1
     raw_data.rows.forEach((point, i) => {
         // see seismicSliceRenderData.js at `createRenderData -> renderData.updatePos`
         const _x = ( start['crossline'] + point[ header_of_index['crossline'] ] ) / down_factor;
@@ -273,7 +375,7 @@ function create_fault_line_render_data(
         const _id = point[ header_of_index["_id"] ];
         // this conditional branch assumed that USER INPUT of `_id`, should START
         // FORM 0. so here we update all of the container if `_id` changes.
-        if ( _count_id != _id+1 ) {
+        if ( _temp_id != _id+1 ) {
             raw_vector3_points .push([]);
             raw_vector3_colors .push([]);
             raw_vector3_sizes  .push([]);
@@ -282,21 +384,21 @@ function create_fault_line_render_data(
             pool_ids.push(_id);
             // update count_id
             _count_id += 1;
+            _temp_id   = _id;
             // update color
             point_color = ( render_data.lines_options.color == undefined ) ? ColorCyclerFaults.next() : point_color;
         }
 
         const _color_from_row = header_of_index.hasOwnProperty("color") ? point[ header_of_index["color"] ] : point_color;
-        console.log("_color_from_row: ", _color_from_row);
         const color = new THREE.Color(_color_from_row);
-        raw_vector3_colors[_id].push(color.r, color.g, color.b);
-        raw_vector3_points[_id].push(_x, _y, _z);
-        raw_vector3_sizes [_id].push(point_size);
+        raw_vector3_colors[_temp_id].push(color.r, color.g, color.b);
+        raw_vector3_points[_temp_id].push(_x, _y, _z);
+        raw_vector3_sizes [_temp_id].push(point_size);
 
         const knot = THREE.MathUtils.clamp( ( i + 1 ) / ( j - nurbs_degree ), 0, 1);
-        nurbs_lines_points[_id].push( new THREE.Vector4(_x, _y, _z, 1) );
-        for ( let ii = 0; ii <= nurbs_degree; ii ++ ) { nurbs_lines_knots[_id].push( 0 ); }
-        nurbs_lines_knots[_id].push( knot );
+        nurbs_lines_points[_temp_id].push( new THREE.Vector4(_x, _y, _z, 1) );
+        for ( let ii = 0; ii <= nurbs_degree; ii ++ ) { nurbs_lines_knots[_temp_id].push( 0 ); }
+        nurbs_lines_knots[_temp_id].push( knot );
 
     })
 
@@ -375,5 +477,6 @@ export {
     SAMPLE_DATA_LINES,
     SAMPLE_DATA_SURFACE,
     create_fault_line_render_data,
+    create_fault_point_render_data,
 };
 
